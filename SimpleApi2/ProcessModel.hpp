@@ -133,26 +133,16 @@ struct Metadata<ConcreteKey_k, SimpleApi2::ProcessModel<Info>>
 namespace SimpleApi2
 {
 
-struct PortInitFunc
+struct InletInitFunc
 {
   Process::ProcessModel& self;
   Process::Inlets& ins;
-  Process::Outlets& outs;
   int inlet = 0;
-  int outlet = 0;
   void operator()(const AudioInput auto& in)
   {
     auto p = new Process::AudioInlet(Id<Process::Port>(inlet++), &self);
     p->setName(QString::fromUtf8(in.name()));
     ins.push_back(p);
-  }
-  void operator()(const AudioOutput auto& out)
-  {
-    auto p = new Process::AudioOutlet(Id<Process::Port>(outlet++), &self);
-    p->setName(QString::fromUtf8(out.name()));
-    if (outlet == 1)
-      p->setPropagate(true);
-    outs.push_back(p);
   }
   void operator()(const ValueInput auto& in)
   {
@@ -160,23 +150,17 @@ struct PortInitFunc
     p->setName(QString::fromUtf8(in.name()));
     ins.push_back(p);
   }
-  void operator()(const ValueOutput auto& out)
+  void operator()(const TimedValueInput auto& in)
   {
-    auto p = new Process::ValueOutlet(Id<Process::Port>(outlet++), &self);
-    p->setName(QString::fromUtf8(out.name()));
-    outs.push_back(p);
+    auto p = new Process::ValueInlet(Id<Process::Port>(inlet++), &self);
+    p->setName(QString::fromUtf8(in.name()));
+    ins.push_back(p);
   }
   void operator()(const MidiInput auto& in)
   {
     auto p = new Process::MidiInlet(Id<Process::Port>(inlet++), &self);
     p->setName(QString::fromUtf8(in.name()));
     ins.push_back(p);
-  }
-  void operator()(const MidiOutput auto& out)
-  {
-    auto p = new Process::MidiOutlet(Id<Process::Port>(outlet++), &self);
-    p->setName(QString::fromUtf8(out.name()));
-    outs.push_back(p);
   }
   void operator()(const ControlInput auto& ctrl)
   {
@@ -186,15 +170,49 @@ struct PortInitFunc
       ins.push_back(p);
     }
   }
+};
+
+struct OutletInitFunc
+{
+  Process::ProcessModel& self;
+  Process::Outlets& outs;
+  int outlet = 0;
+  void operator()(const AudioOutput auto& out)
+  {
+    auto p = new Process::AudioOutlet(Id<Process::Port>(outlet++), &self);
+    p->setName(QString::fromUtf8(out.name()));
+    if (outlet == 1)
+      p->setPropagate(true);
+    outs.push_back(p);
+  }
+  void operator()(const ValueOutput auto& out)
+  {
+    auto p = new Process::ValueOutlet(Id<Process::Port>(outlet++), &self);
+    p->setName(QString::fromUtf8(out.name()));
+    outs.push_back(p);
+  }
+  void operator()(const TimedValueOutput auto& out)
+  {
+    auto p = new Process::ValueOutlet(Id<Process::Port>(outlet++), &self);
+    p->setName(QString::fromUtf8(out.name()));
+    outs.push_back(p);
+  }
+  void operator()(const MidiOutput auto& out)
+  {
+    auto p = new Process::MidiOutlet(Id<Process::Port>(outlet++), &self);
+    p->setName(QString::fromUtf8(out.name()));
+    outs.push_back(p);
+  }
   void operator()(const ControlOutput auto& ctrl)
   {
-    if (auto p = ctrl.control().create_outlet(Id<Process::Port>(outlet++), &self))
+    if (auto p = ctrl.display().create_outlet(Id<Process::Port>(outlet++), &self))
     {
       p->hidden = true;
       outs.push_back(p);
     }
   }
 };
+/*
 struct PortLoadFunc
 {
   Process::ProcessModel& self;
@@ -257,22 +275,7 @@ struct PortLoadFunc
     }
   }
 };
-
-template<typename Node, typename Func>
-void for_each_port(Func&& func)
-{
-  if constexpr(requires { Node::inputs; })
-  {
-    decltype(Node::inputs) ins;
-    boost::pfr::for_each_field_ref(ins, func);
-  }
-  if constexpr(requires { Node::outputs; })
-  {
-    decltype(Node::outputs) outs;
-    boost::pfr::for_each_field_ref(outs, func);
-  }
-}
-
+*/
 template <typename Info, typename>
 class ProcessModel final : public Process::ProcessModel
 {
@@ -294,7 +297,16 @@ public:
   {
     metadata().setInstanceName(*this);
 
-    for_each_port<Info>(PortInitFunc{*this, m_inlets, m_outlets});
+    if constexpr(requires { Info::inputs; })
+    {
+      decltype(Info::inputs) ins;
+      boost::pfr::for_each_field_ref(ins, InletInitFunc{*this, m_inlets});
+    }
+    if constexpr(requires { Info::outputs; })
+    {
+      decltype(Info::outputs) outs;
+      boost::pfr::for_each_field_ref(outs, OutletInitFunc{*this, m_outlets});
+    }
   }
 
   template <typename Impl>

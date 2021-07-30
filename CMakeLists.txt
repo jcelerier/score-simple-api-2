@@ -8,7 +8,9 @@ project(score_addon_simpleapi2 LANGUAGES CXX)
 
 add_library(
   score_addon_simpleapi2
+  Examples/EfficientTest.hpp
   Examples/Distortion.hpp
+  Examples/AudioEffectExample.hpp
   Examples/CCC.hpp
   SimpleApi2/Concepts.hpp
   SimpleApi2/Executor.hpp

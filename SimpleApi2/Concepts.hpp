@@ -80,16 +80,52 @@ concept NamedPort = requires(T a) {
 };
 
 template<typename T>
-concept AudioInput = NamedPort<T> && requires (T a) {
+concept MultichannelAudioInput = requires (T a) {
   { a.samples.size() } -> std::convertible_to<std::size_t>;
   { a.samples[0].size() } -> std::convertible_to<std::size_t>;
   { a.samples[0][0] } -> std::same_as<const double&>;
 };
 template<typename T>
-concept AudioOutput = NamedPort<T> && requires (T a) {
+concept MultichannelAudioOutput = requires (T a) {
   { a.samples.size() } -> std::convertible_to<std::size_t>;
   { a.samples[0].size() } -> std::convertible_to<std::size_t>;
   { a.samples[0][0] } -> std::same_as<double&>;
+};
+
+template<typename T>
+concept AudioEffectInput = requires (T a) {
+  { a.samples } -> std::convertible_to<const double**>;
+  { a.channels } -> std::convertible_to<std::size_t>;
+};
+template<typename T>
+concept AudioEffectOutput = requires (T a) {
+  { a.samples } -> std::convertible_to<double**>;
+  { a.channels } -> std::convertible_to<std::size_t>;
+};
+
+template<typename T>
+concept PortAudioInput = requires (T a) {
+  { a.port } -> std::same_as<const ossia::audio_port*>;
+};
+
+template<typename T>
+concept PortAudioOutput = requires (T a) {
+  { a.port } -> std::same_as<ossia::audio_port*>;
+};
+
+template<typename T>
+concept AudioInput = NamedPort<T> && (MultichannelAudioInput<T> || AudioEffectInput<T> || PortAudioInput<T>);
+template<typename T>
+concept AudioOutput = NamedPort<T> && (MultichannelAudioOutput<T> || AudioEffectOutput<T> || PortAudioOutput<T>);
+
+template<typename T>
+concept PortValueInput = requires (T a) {
+  { a.port } -> std::same_as<const ossia::value_port*>;
+};
+
+template<typename T>
+concept PortValueOutput = requires (T a) {
+  { a.port } -> std::same_as<ossia::value_port*>;
 };
 
 template<typename T>
@@ -100,6 +136,17 @@ concept ValueInput = NamedPort<T> && requires (T a) {
 template<typename T>
 concept ValueOutput = NamedPort<T> && requires (T a) {
   { a.port } -> std::same_as<ossia::value_port*>;
+};
+
+
+template<typename T>
+concept TimedValueInput = NamedPort<T> && requires (T a) {
+  { a.values[0] } -> std::convertible_to<ossia::value>;
+};
+
+template<typename T>
+concept TimedValueOutput = NamedPort<T> && requires (T a) {
+  { a.values[0] } -> std::convertible_to<ossia::value>;
 };
 
 template<typename T>
@@ -120,6 +167,11 @@ concept ControlOutput = requires (T a) {
   { a.display() };
 };
 
+template<typename T>
+concept TimedVec = requires (T a) {
+  { a.begin()->first } -> std::same_as<int64_t>;
+  { a.begin()->second };
+};
 
 
 template<typename T>
@@ -131,6 +183,10 @@ using IsValueInput = typename std::integral_constant< bool, ValueInput<T>>;
 template<typename T>
 using IsValueOutput = typename std::integral_constant< bool, ValueOutput<T>>;
 template<typename T>
+using IsTimedValueInput = typename std::integral_constant< bool, TimedValueInput<T>>;
+template<typename T>
+using IsTimedValueOutput = typename std::integral_constant< bool, TimedValueOutput<T>>;
+template<typename T>
 using IsMidiInput = typename std::integral_constant< bool, MidiInput<T>>;
 template<typename T>
 using IsMidiOutput = typename std::integral_constant< bool, MidiOutput<T>>;
@@ -138,19 +194,7 @@ template<typename T>
 using IsControlInput = typename std::integral_constant< bool, ControlInput<T>>;
 template<typename T>
 using IsControlOutput = typename std::integral_constant< bool, ControlOutput<T>>;
-#define meta_attribute_uuid(name, value) static uuid_constexpr auto uuid() { return_uuid(value); }
 
-#define meta_attribute_name(name, value) static constexpr auto name() { return value; }
-#define meta_attribute_pretty_name(name, value) static constexpr auto prettyName() { return value; }
-#define meta_attribute_script_name(name, value) static constexpr auto objectKey() { return value; }
-#define meta_attribute_category(name, value) static constexpr auto category() { return #value; }
-#define meta_attribute_author(name, value) static constexpr auto author() { return value; }
-#define meta_attribute_kind(name, value) static constexpr auto kind() { return Process::ProcessCategory::value; }
-#define meta_attribute_description(name, value) static constexpr auto description() { return value; }
-
-#define meta_attribute(name, value) meta_attribute_ ## name(name, value)
-#define meta_control(type, ...) static constexpr type control() { return {__VA_ARGS__}; }
-#define meta_display(type, ...) static constexpr type display() { return {__VA_ARGS__}; }
 struct multichannel_audio_view {
   ossia::audio_vector* buffer{};
   const ossia::audio_channel& operator[](std::size_t i) const noexcept { return (*buffer)[i]; };
@@ -174,7 +218,6 @@ struct multichannel_audio {
     for(auto& vec : *buffer) vec.reserve(bufferSize);
   }
 };
-
 }
 
 

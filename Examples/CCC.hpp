@@ -9,7 +9,7 @@ namespace SimpleApi2
 struct CCC
 {
   meta_attribute(pretty_name, "CCC");
-  meta_attribute(script_name, "CCC");
+  meta_attribute(script_name, CCC);
   meta_attribute(category, Audio);
   meta_attribute(kind, Generator);
   meta_attribute(author, "Peter Castine");
@@ -17,16 +17,17 @@ struct CCC
   meta_attribute(uuid, "9db0af3c-8573-4541-95d4-cf7902cdbedb");
 
   struct {
-    struct bang : control_input {
+    struct {
       meta_control(Control::ImpulseButton, "Bang");
 
-      ossia::safe_nodes::timed_vec<ossia::impulse> value;
+      ossia::safe_nodes::timed_vec<ossia::impulse> values;
     } bang;
   } inputs;
 
   struct {
-    struct main_outlet : value_output {
+    struct {
       meta_attribute(name, "Out");
+      ossia::safe_nodes::timed_vec<float> values;
     } out;
   } outputs;
 
@@ -37,7 +38,7 @@ struct CCC
       ossia::exec_state_facade st
       )
   {
-    for(auto& [timestamp, value] : inputs.bang.value)
+    for(auto& [timestamp, value] : inputs.bang.values)
     {
       // CCC algorithm
       {
@@ -59,7 +60,7 @@ struct CCC
         this->current_value = curVal;
       }
 
-      outputs.out.port->write_value(current_value, timestamp);
+      outputs.out.values[timestamp] = current_value;
     }
   }
 };

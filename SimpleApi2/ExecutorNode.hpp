@@ -76,7 +76,12 @@ struct InitInlets
   {
     inlets.push_back(std::addressof(port));
 
-    in.samples.buffer = std::addressof(port->samples);
+    if constexpr(MultichannelAudioInput<decltype(in)>) {
+      in.samples.buffer = std::addressof(port->samples);
+    }
+    else if constexpr(PortAudioInput<decltype(in)>) {
+      in.port = std::addressof(*port);
+    }
   }
 
   void operator()(ValueInput auto& in, ossia::value_inlet& port) const noexcept
@@ -87,6 +92,15 @@ struct InitInlets
       port->is_event = in.is_event;
     }
     in.port = std::addressof(*port);
+  }
+
+  void operator()(TimedValueInput auto& in, ossia::value_inlet& port) const noexcept
+  {
+    inlets.push_back(std::addressof(port));
+
+    if constexpr(requires { in.is_event; }) {
+      port->is_event = in.is_event;
+    }
   }
 
   void operator()(MidiInput auto& in, ossia::midi_inlet& port) const noexcept
@@ -101,7 +115,9 @@ struct InitInlets
     inlets.push_back(std::addressof(port));
 
     port->is_event = true;
-    //ctrl.port = std::addressof(*port);
+
+    if constexpr(requires { ctrl.port; })
+      ctrl.port = std::addressof(*port);
 
     ctrl.control().setup_exec(port);
   }
@@ -116,7 +132,12 @@ struct InitOutlets
   {
     outlets.push_back(std::addressof(port));
 
-    out.samples.buffer = std::addressof(port->samples);
+    if constexpr(MultichannelAudioOutput<decltype(out)>) {
+      out.samples.buffer = std::addressof(port->samples);
+    }
+    else if constexpr(PortAudioOutput<decltype(out)>) {
+      out.port = std::addressof(*port);
+    }
   }
 
   void operator()(ValueOutput auto& out, ossia::value_outlet& port) const noexcept
@@ -124,6 +145,16 @@ struct InitOutlets
     outlets.push_back(std::addressof(port));
 
     out.port = std::addressof(*port);
+
+    if constexpr(requires { out.type; }) {
+      if(!out.type.empty())
+        port->type = ossia::parse_dataspace(out.type);
+    }
+  }
+
+  void operator()(TimedValueOutput auto& out, ossia::value_outlet& port) const noexcept
+  {
+    outlets.push_back(std::addressof(port));
 
     if constexpr(requires { out.type; }) {
       if(!out.type.empty())
@@ -142,8 +173,128 @@ struct InitOutlets
   {
     outlets.push_back(std::addressof(port));
 
-    //ctrl.port = std::addressof(*port);
-    ctrl.control().setup_exec(port);
+    if constexpr(requires { ctrl.port; })
+      ctrl.port = std::addressof(*port);
+
+    ctrl.display().setup_exec(port);
+  }
+};
+
+
+
+template<typename Exec_T>
+struct BeforeExecInlets
+{
+  Exec_T& self;
+
+  void operator()(AudioInput auto& in, ossia::audio_inlet& port) const noexcept
+  {
+  }
+
+  void operator()(ValueInput auto& in, ossia::value_inlet& port) const noexcept
+  {
+  }
+
+  void operator()(TimedValueInput auto& in, ossia::value_inlet& port) const noexcept
+  {
+    using value_type = std::remove_reference_t<decltype(in.values[0])>;
+    in.values.clear();
+    in.values.reserve(port.data.get_data().size());
+    for(auto& [timestamp, value] : port.data.get_data())
+    {
+      in.values[timestamp] = ossia::convert<value_type>(std::move(value));
+    }
+  }
+
+  void operator()(MidiInput auto& in, ossia::midi_inlet& port) const noexcept
+  {
+  }
+
+  void operator()(ControlInput auto& ctrl, ossia::value_inlet& port) const noexcept
+  {
+  }
+};
+
+template<typename Exec_T>
+struct BeforeExecOutlets
+{
+  Exec_T& self;
+
+  void operator()(AudioOutput auto& out, ossia::audio_outlet& port) const noexcept
+  {
+  }
+
+  void operator()(ValueOutput auto& out, ossia::value_outlet& port) const noexcept
+  {
+  }
+
+  void operator()(TimedValueOutput auto& out, ossia::value_outlet& port) const noexcept
+  {
+  }
+
+  void operator()(MidiOutput auto& out, ossia::midi_outlet& port) const noexcept
+  {
+  }
+
+  void operator()(ControlOutput auto& ctrl, ossia::value_outlet& port) const noexcept
+  {
+  }
+};
+
+template<typename Exec_T>
+struct AfterExecInlets
+{
+  Exec_T& self;
+
+  void operator()(AudioInput auto& in, ossia::audio_inlet& port) const noexcept
+  {
+  }
+
+  void operator()(ValueInput auto& in, ossia::value_inlet& port) const noexcept
+  {
+  }
+
+  void operator()(TimedValueInput auto& in, ossia::value_inlet& port) const noexcept
+  {
+  }
+
+  void operator()(MidiInput auto& in, ossia::midi_inlet& port) const noexcept
+  {
+  }
+
+  void operator()(ControlInput auto& ctrl, ossia::value_inlet& port) const noexcept
+  {
+  }
+};
+
+template<typename Exec_T>
+struct AfterExecOutlets
+{
+  Exec_T& self;
+
+  void operator()(AudioOutput auto& out, ossia::audio_outlet& port) const noexcept
+  {
+  }
+
+  void operator()(ValueOutput auto& out, ossia::value_outlet& port) const noexcept
+  {
+  }
+
+  void operator()(TimedValueOutput auto& out, ossia::value_outlet& port) const noexcept
+  {
+    for(auto& [timestamp, value] : out.values)
+    {
+      port->write_value(std::move(value), timestamp);
+    }
+    out.values.clear();
+  }
+
+  void operator()(MidiOutput auto& out, ossia::midi_outlet& port) const noexcept
+  {
+  }
+
+  void operator()(ControlOutput auto& ctrl, ossia::value_outlet& port) const noexcept
+  {
   }
 };
 
@@ -212,16 +363,36 @@ public:
   template <typename T, std::size_t ControlN>
   void control_updated_from_ui(T&& v)
   {
-    if constexpr(std::is_same_v<T, ossia::impulse>)
+    using control_member = std::tuple_element_t<ControlN, typename info::control_input_tuple>;
+    if constexpr(requires { control_member{}.port; })
     {
-      std::get<ControlN>(this->control_input_timed).emplace(int64_t{0}, std::move(v));
+      // using port_index_t = typename info::template control_input_index<ControlN>;
+      // copy into the control's port directly
+      // TODO does not work: this happens at the beginning of the entire tick.
+      // but the input is cleared after that.
+      // So we need to have some buffer for this case...
+      // const auto& vp = get<port_index_t::value>(this->input_ports)->get_data();
     }
-    else
+    else if constexpr(requires { control_member{}.values; })
     {
-      std::get<ControlN>(this->control_input) = std::move(v);
+      // copy into the control's values array
+      // NOTE: we do not use emplace / insert as we want to replace the existing value if any
+      std::get<ControlN>(this->control_input_timed)[int64_t{0}] = std::move(v);
+    }
+    else if constexpr(requires { control_member{}.value; })
+    {
+      if constexpr(std::is_same_v<T, ossia::impulse>)
+      {
+        std::get<ControlN>(this->control_input_timed)[int64_t{0}] = std::move(v);
+      }
+      else
+      {
+        std::get<ControlN>(this->control_input) = std::move(v);
+      }
     }
   }
 
+  // Loads the control data from the port, into the timed input.
   template <std::size_t ControlN>
   constexpr const auto& get_control_accessor() noexcept
   {
@@ -246,13 +417,14 @@ public:
 
     if constexpr(std::is_same_v<control_value_type, ossia::impulse>)
     {
+      static_assert(TimedVec<decltype(control_member::values)>, "impulses only make sense as an array of timed values");
       // copy all the values... values arrived later replace previous ones
       load_control_from_port<control_type::must_validate, ControlN, port_index_t::value>(vec, vp);
     }
     else
     {
-      // in all cases, set the current value at t=0
-      vec.insert(std::make_pair(int64_t{0}, get<ControlN>(this->control_input)));
+      // in all cases, set the current value at t=0 unless it was already set
+      vec.emplace(int64_t{0}, get<ControlN>(this->control_input));
 
       // copy all the values... values arrived later replace previous ones
       load_control_from_port<control_type::must_validate, ControlN, port_index_t::value>(vec, vp);
@@ -299,12 +471,31 @@ public:
     }
   }
 
+  template<typename Port, typename Control>
+  void apply_control_impl(Port& port, Control&& ctl)
+  {
+    if constexpr(requires { port.value; })
+    {
+      // control has e.g. a float value; : copy the running value in it
+      port.value = std::forward<Control>(ctl);
+    }
+    if constexpr(requires { port.values; })
+    {
+      // nothing to do, already copied
+      port.values = std::forward<Control>(ctl);
+    }
+    else if constexpr(requires { port.port; })
+    {
+      // nothing to do, already set
+    }
+  }
+
   // copies all the controls to the state class
   template<typename... Controls, std::size_t... CI>
   void apply_controls_impl(const std::index_sequence<CI...>&, Controls&&... ctls)
   {
     using namespace boost::pfr;
-    ((get<info::template control_input_index<CI>::value...>(state.inputs).value = ctls),
+    (apply_control_impl(get<info::template control_input_index<CI>::value...>(state.inputs), ctls),
      ...);
   }
 
@@ -314,7 +505,55 @@ public:
       return typename Node_T::control_policy{};
     }
     else {
-      return typename ossia::safe_nodes::default_tick{};
+      if constexpr(boost::mp11::mp_any_of<typename info::control_input_tuple, uses_timed_values>::value)
+        return typename ossia::safe_nodes::default_tick{};
+      else
+        return typename ossia::safe_nodes::last_tick{};
+    }
+  }
+
+  void do_run(const ossia::token_request& sub_tk, ossia::exec_state_facade st)
+  {
+    if constexpr(requires { state.run(sub_tk, st); })
+      state.run(sub_tk, st);
+    else if constexpr(requires { state.run(0); })
+    {
+      const int64_t N = sub_tk.physical_write_duration(st.modelToSamples());
+      const int64_t first_pos = sub_tk.physical_start(st.modelToSamples());
+
+      // Ensure that we have enough space allocated in the output
+      auto& p1 = std::get<0>(this->input_ports)->samples;
+      auto& p2 = std::get<0>(this->output_ports)->samples;
+      auto& state_p1 = boost::pfr::get<0>(state.inputs);
+      auto& state_p2 = boost::pfr::get<0>(state.outputs);
+      const auto chans = p1.size();
+      p2.resize(chans);
+      state_p1.channels = chans;
+      state_p2.channels = chans;
+      state_p1.samples = (const double**)alloca(sizeof(double*) * chans);
+      state_p2.samples = (double**)alloca(sizeof(double*) * chans);
+
+      for (std::size_t i = 0; i < chans; i++)
+      {
+        auto& in = p1[i];
+        if(int64_t(in.size()) - first_pos < N)
+          in.resize(N + first_pos);
+        state_p1.samples[i] = in.data() + first_pos;
+
+        auto& out = p2[i];
+        if(out.size() < in.size())
+          out.resize(in.size());
+        state_p2.samples[i] = out.data() + first_pos;
+      }
+
+      state.run(N);
+
+      state_p1.samples = nullptr;
+      state_p2.samples = nullptr;
+    }
+    else if constexpr(requires { state.run(); })
+    {
+      state.run();
     }
   }
 
@@ -328,7 +567,7 @@ public:
 
     get_policy()([&] (const ossia::token_request& sub_tk, auto&& ... ctls) {
                    apply_controls_impl(std::make_index_sequence<sizeof... (ctls)>{}, ctls...);
-                   state.run(sub_tk, st);
+                   do_run(sub_tk, st);
                  }, tk, get_control_accessor<CI>()...);
   }
 
@@ -345,18 +584,37 @@ public:
   void
   run(const ossia::token_request& tk, ossia::exec_state_facade st) noexcept override
   {
+    /// General setup ///
     if constexpr(info::control_out_count > 0)
     {
       clear_controls_out();
     }
 
-    // If there are no controls
+    /// Prepare inlets and outlets ///
+    if constexpr(requires { state.inputs; })
+    {
+      ossia::for_each_in_tuples(
+          boost::pfr::detail::tie_as_tuple(state.inputs),
+          this->input_ports,
+          BeforeExecInlets<safe_node>{*this});
+    }
+    if constexpr(requires { state.outputs; })
+    {
+      ossia::for_each_in_tuples(
+          boost::pfr::detail::tie_as_tuple(state.outputs),
+          this->output_ports,
+          BeforeExecOutlets<safe_node>{*this});
+    }
+
+    /// Execution ///
     if constexpr (info::control_in_count == 0)
     {
-      state.run(tk, st);
+      // If there are no controls
+      do_run(tk, st);
     }
     else
     {
+      // If there are controls
       using controls_indices = std::make_index_sequence<info::control_in_count>;
 
       apply_all_impl(controls_indices{}, tk, st);
@@ -370,6 +628,7 @@ public:
       clear_controls_in();
     }
 
+    /// Post-execution tasks ///
     if constexpr(info::control_out_count > 0)
     {
       std::size_t i = 0;
@@ -393,6 +652,22 @@ public:
       {
         this->control_outs_queue.enqueue(this->control_output);
       }
+    }
+
+    /// Finish inlets and outlets ///
+    if constexpr(requires { state.inputs; })
+    {
+      ossia::for_each_in_tuples(
+          boost::pfr::detail::tie_as_tuple(state.inputs),
+          this->input_ports,
+          AfterExecInlets<safe_node>{*this});
+    }
+    if constexpr(requires { state.outputs; })
+    {
+      ossia::for_each_in_tuples(
+          boost::pfr::detail::tie_as_tuple(state.outputs),
+          this->output_ports,
+          AfterExecOutlets<safe_node>{*this});
     }
   }
 

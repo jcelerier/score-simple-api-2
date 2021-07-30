@@ -6,6 +6,8 @@
 
 #include <score/plugins/FactorySetup.hpp>
 
+#include <Examples/AudioEffectExample.hpp>
+#include <Examples/EfficientTest.hpp>
 #include <Examples/Distortion.hpp>
 #include <Examples/CCC.hpp>
 #include <boost/pfr.hpp>
@@ -87,7 +89,11 @@ score_addon_simpleapi2::factories(
     const score::ApplicationContext& ctx,
     const score::InterfaceKey& key) const
 {
-  return SimpleApi2::instantiate_fx<SimpleApi2::Distortion, SimpleApi2::CCC>(ctx, key);
+  return SimpleApi2::instantiate_fx<
+      SimpleApi2::Distortion
+    , SimpleApi2::CCC
+    , SimpleApi2::EfficientTest
+    , SimpleApi2::AudioEffectExample>(ctx, key);
 }
 
 std::vector<score::PluginKey> score_addon_simpleapi2::required() const

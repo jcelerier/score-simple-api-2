@@ -14,7 +14,7 @@ struct Distortion
    * UUIDs are important to uniquely identify plug-ins: you can use uuidgen for instance.
    */
   meta_attribute(pretty_name, "My pretty distortion");
-  meta_attribute(script_name, "disto_123");
+  meta_attribute(script_name, disto_123);
   meta_attribute(category, Audio);
   meta_attribute(kind, AudioEffect);
   meta_attribute(author, "<AUTHOR>");

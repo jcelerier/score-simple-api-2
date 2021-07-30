@@ -4,18 +4,6 @@
 #include <Control/Widgets.hpp>
 #include <ossia/dataflow/safe_nodes/tick_policies.hpp>
 
-struct multichannel_audio_view {
-  const ossia::audio_vector* buffer{};
-  const ossia::audio_channel& operator[](std::size_t i) const noexcept { return (*buffer)[i]; };
-  std::size_t size() const noexcept { return buffer->size(); }
-};
-
-struct multichannel_audio {
-  ossia::audio_vector* buffer{};
-  ossia::audio_channel& operator[](int i) const noexcept { return (*buffer)[i];};
-  std::size_t size() const noexcept { return buffer->size(); }
-  void resize(std::size_t i) const noexcept { return buffer->resize(i); }
-};
 
 namespace SimpleApi2
 {
@@ -23,19 +11,15 @@ struct Distortion
 {
   /**
    * An audio effect plug-in must provide some metadata: name, author, etc.
+   * UUIDs are important to uniquely identify plug-ins: you can use uuidgen for instance.
    */
-  struct Metadata
-  {
-    static const constexpr auto prettyName = "Distortion";
-    static const constexpr auto objectKey = "Distortion";
-    static const constexpr auto category = "Audio";
-    static const constexpr auto author = "<AUTHOR>";
-    static const constexpr auto kind = Process::ProcessCategory::AudioEffect;
-    static const constexpr auto description = "<DESCRIPTION>";
-    static const constexpr auto tags = std::array<const char*, 0>{};
-    static const uuid_constexpr auto uuid
-        = make_uuid("9d4e59a6-e062-49cf-98f3-1c17a932bfff");
-  };
+  meta_attribute(pretty_name, "My pretty distortion");
+  meta_attribute(script_name, "disto_123");
+  meta_attribute(category, Audio);
+  meta_attribute(kind, AudioEffect);
+  meta_attribute(author, "<AUTHOR>");
+  meta_attribute(description, "<DESCRIPTION>");
+  meta_attribute(uuid, "b9237d2a-1651-4dcc-920b-80e5e619c6c4");
 
   /**
    * This is used to define the sample-accuracy level of this plug-in ;
@@ -44,27 +28,41 @@ struct Distortion
    */
   using control_policy = ossia::safe_nodes::last_tick;
 
-  struct inputs {
+  /** We define the input ports of our process: in this case,
+   *  there's an audio input, a gain slider.
+   */
+  struct {
     struct {
-      constant name() { return "In"; }
+      meta_attribute(name, "In");
       multichannel_audio_view samples;
     } audio;
 
-    struct gain : control_input {
-      constant control = Control::FloatSlider{ "Gain", 0.f, 100.f, 10.f };
+    struct {
+      meta_control(Control::FloatSlider, "Gain", 0.f, 100.f, 10.f);
 
       float value = 10.f;
     } gain;
+
   } inputs;
 
-  struct outputs {
+  /** And the output ports: only an audio output on this one **/
+  struct {
     struct {
-      constant name() { return "Out"; }
+      meta_attribute(name, "Out")
       multichannel_audio samples;
     } audio;
 
   } outputs;
 
+  /** Will be called upon creation, and whenever the buffer size / sample rate changes **/
+  void reset(ossia::exec_state_facade st)
+  {
+    // Reserve memory for two channels
+    inputs.audio.samples.reserve(2, st.bufferSize());
+    outputs.audio.samples.reserve(2, st.bufferSize());
+  }
+
+  /** Our actual function for transforming the inputs into outputs **/
   void run(
       const ossia::token_request& t,
       ossia::exec_state_facade st
@@ -81,7 +79,6 @@ struct Distortion
     // When do we start writing, and for how many samples
     const int64_t N = t.physical_write_duration(st.modelToSamples());
     const int64_t first_pos = t.physical_start(st.modelToSamples());
-
     // Process the input buffer
     for (std::size_t i = 0; i < chans; i++)
     {

@@ -13,8 +13,7 @@ struct get_type_list;
 template<typename T>
 struct get_control_value_type
 {
-  using control_type = decltype(std::remove_reference_t<T>::control);
-  using type = typename control_type::type;
+  using type = typename decltype(std::remove_reference_t<T>::control())::type;
 
 };
 template<template<typename ...> typename Tuple, typename ... T>

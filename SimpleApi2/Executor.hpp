@@ -52,7 +52,7 @@ struct setup_Impl0
       constexpr auto control_index = ControlIndexT::value;
       using port_index_t = typename info_functions_2<Info>::template control_input_index<ControlIndexT::value>;
 
-      constexpr const auto control_spec = tuple_element_t<port_index_t::value, decltype(Node_T::state.inputs)>::control;
+      constexpr const auto control_spec = tuple_element_t<port_index_t::value, decltype(Node_T::state.inputs)>::control();
       using control_type = decltype(control_spec);
 
       using control_value_type = typename control_type::type;
@@ -78,7 +78,7 @@ struct setup_Impl0
       constexpr auto control_index = ControlIndexT::value;
       using port_index_t = typename info_functions_2<Info>::template control_input_index<ControlIndexT::value>;
 
-      constexpr const auto control_spec = tuple_element_t<port_index_t::value, decltype(Node_T::state.inputs)>::control;
+      constexpr const auto control_spec = tuple_element_t<port_index_t::value, decltype(Node_T::state.inputs)>::control();
       using control_type = decltype(control_spec);
 
       using control_value_type = typename control_type::type;
@@ -99,7 +99,7 @@ struct setup_Impl0
     constexpr int control_index = ControlIndexT::value;
     using port_index_t = typename info_functions_2<Info>::template control_input_index<ControlIndexT::value>;
 
-    constexpr const auto control_spec = tuple_element_t<port_index_t::value, decltype(Node_T::state.inputs)>::control;
+    constexpr const auto control_spec = tuple_element_t<port_index_t::value, decltype(Node_T::state.inputs)>::control();
     using control_type = decltype(control_spec);
 
     auto inlet = static_cast<Process::ControlInlet*>(element.inlets()[port_index_t::value]);
@@ -146,7 +146,7 @@ struct setup_Impl1
     constexpr int control_index = ControlIndexT::value;
     using port_index_t = typename info_functions_2<Info>::template control_input_index<ControlIndexT::value>;
 
-    constexpr const auto control_spec = tuple_element_t<port_index_t::value, decltype(Node_T::state.inputs)>::control;
+    constexpr const auto control_spec = tuple_element_t<port_index_t::value, decltype(Node_T::state.inputs)>::control();
 
     auto inlet = static_cast<Process::ControlInlet*>(element.inlets()[port_index_t::value]);
 
@@ -168,7 +168,7 @@ struct setup_Impl1_Out
     constexpr int control_index = ControlIndexT::value;
     using port_index_t = typename info_functions_2<Info>::template control_output_index<ControlIndexT::value>;
 
-    constexpr const auto control_spec = tuple_element_t<port_index_t::value, decltype(Node_T::state.outputs)>::control;
+    constexpr const auto control_spec = tuple_element_t<port_index_t::value, decltype(Node_T::state.outputs)>::control();
 
     auto outlet = static_cast<Process::ControlOutlet*>(element.outlets()[port_index_t::value]);
 
@@ -280,7 +280,7 @@ public:
   static Q_DECL_RELAXED_CONSTEXPR UuidKey<score::Component>
   static_key() noexcept
   {
-    return Info::Metadata::uuid;
+    return Info::uuid();
   }
 
   UuidKey<score::Component> key() const noexcept final override

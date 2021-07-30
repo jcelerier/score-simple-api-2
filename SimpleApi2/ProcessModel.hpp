@@ -30,7 +30,7 @@ struct Metadata<PrettyName_k, SimpleApi2::ProcessModel<Info>>
 {
   static Q_DECL_RELAXED_CONSTEXPR auto get()
   {
-    return Info::Metadata::prettyName;
+    return Info::prettyName();
   }
 };
 template <typename Info>
@@ -38,7 +38,7 @@ struct Metadata<Category_k, SimpleApi2::ProcessModel<Info>>
 {
   static Q_DECL_RELAXED_CONSTEXPR auto get()
   {
-    return Info::Metadata::category;
+    return Info::category();
   }
 };
 template <typename Info>
@@ -47,8 +47,9 @@ struct Metadata<Tags_k, SimpleApi2::ProcessModel<Info>>
   static QStringList get()
   {
     QStringList lst;
-    for (auto str : Info::Metadata::tags)
-      lst.append(str);
+    if constexpr(requires { Info::Metadata::tags(); })
+      for (auto str : Info::Metadata::tags())
+        lst.append(str);
     return lst;
   }
 };
@@ -90,11 +91,11 @@ struct Metadata<Process::Descriptor_k, SimpleApi2::ProcessModel<Info>>
   static Process::Descriptor get()
   {
     static Process::Descriptor desc{
-        Info::Metadata::prettyName,
-        Info::Metadata::kind,
-        Info::Metadata::category,
-        Info::Metadata::description,
-        Info::Metadata::author,
+        Info::prettyName(),
+        Info::kind(),
+        Info::category(),
+        Info::description(),
+        Info::author(),
         Metadata<Tags_k, SimpleApi2::ProcessModel<Info>>::get(),
         inletDescription(),
         outletDescription()};
@@ -105,8 +106,8 @@ template <typename Info>
 struct Metadata<Process::ProcessFlags_k, SimpleApi2::ProcessModel<Info>>
 {
   static Process::ProcessFlags get() noexcept {
-    if constexpr(requires { Info::Metadata::flags; }) {
-      return Info::Metadata::flags;
+    if constexpr(requires { Info::flags(); }) {
+      return Info::flags();
     } else {
       return Process::ProcessFlags(Process::ProcessFlags::SupportsLasting | Process::ProcessFlags::ControlSurface);
     }
@@ -117,7 +118,7 @@ struct Metadata<ObjectKey_k, SimpleApi2::ProcessModel<Info>>
 {
   static Q_DECL_RELAXED_CONSTEXPR auto get() noexcept
   {
-    return Info::Metadata::objectKey;
+    return Info::objectKey();
   }
 };
 template <typename Info>
@@ -125,7 +126,7 @@ struct Metadata<ConcreteKey_k, SimpleApi2::ProcessModel<Info>>
 {
   static Q_DECL_RELAXED_CONSTEXPR UuidKey<Process::ProcessModel> get()
   {
-    return Info::Metadata::uuid;
+    return Info::uuid();
   }
 };
 
@@ -179,7 +180,7 @@ struct PortInitFunc
   }
   void operator()(const ControlInput auto& ctrl)
   {
-    if (auto p = ctrl.control.create_inlet(Id<Process::Port>(inlet++), &self))
+    if (auto p = ctrl.control().create_inlet(Id<Process::Port>(inlet++), &self))
     {
       p->hidden = true;
       ins.push_back(p);
@@ -187,7 +188,7 @@ struct PortInitFunc
   }
   void operator()(const ControlOutput auto& ctrl)
   {
-    if (auto p = ctrl.control.create_outlet(Id<Process::Port>(outlet++), &self))
+    if (auto p = ctrl.control().create_outlet(Id<Process::Port>(outlet++), &self))
     {
       p->hidden = true;
       outs.push_back(p);
@@ -258,12 +259,18 @@ struct PortLoadFunc
 };
 
 template<typename Node, typename Func>
-void for_each_port(Node& node, Func&& func)
+void for_each_port(Func&& func)
 {
-  if constexpr(requires { node.inputs; })
-    boost::pfr::for_each_field_ref(node.inputs, func);
-  if constexpr(requires { node.outputs; })
-    boost::pfr::for_each_field_ref(node.outputs, func);
+  if constexpr(requires { Node::inputs; })
+  {
+    decltype(Node::inputs) ins;
+    boost::pfr::for_each_field_ref(ins, func);
+  }
+  if constexpr(requires { Node::outputs; })
+  {
+    decltype(Node::outputs) outs;
+    boost::pfr::for_each_field_ref(outs, func);
+  }
 }
 
 template <typename Info, typename>
@@ -287,9 +294,7 @@ public:
   {
     metadata().setInstanceName(*this);
 
-    Info node; // TODO
-
-    for_each_port(node, PortInitFunc{*this, m_inlets, m_outlets});
+    for_each_port<Info>(PortInitFunc{*this, m_inlets, m_outlets});
   }
 
   template <typename Impl>

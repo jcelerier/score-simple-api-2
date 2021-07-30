@@ -67,55 +67,16 @@ struct has_control_policy<T, std::void_t<typename T::control_policy>>
 };
 
 template<typename Exec_T>
-struct ExecInitFunc
-{
-  Exec_T& self;
-
-  void operator()(const AudioInput auto& in)
-  {
-  }
-  void operator()(const AudioOutput auto& out)
-  {
-  }
-  void operator()(const ValueInput auto& in)
-  {
-  }
-  void operator()(const ValueOutput auto& out)
-  {
-  }
-  void operator()(const MidiInput auto& in)
-  {
-  }
-  void operator()(const MidiOutput auto& out)
-  {
-  }
-  void operator()(const ControlInput auto& ctrl)
-  {
-  }
-  void operator()(const ControlOutput auto& ctrl)
-  {
-  }
-};
-
-template<typename Exec_T>
-struct InitPorts
+struct InitInlets
 {
   Exec_T& self;
   ossia::inlets& inlets;
-  ossia::outlets& outlets;
 
   void operator()(AudioInput auto& in, ossia::audio_inlet& port) const noexcept
   {
     inlets.push_back(std::addressof(port));
 
     in.samples.buffer = std::addressof(port->samples);
-  }
-
-  void operator()(AudioOutput auto& out, ossia::audio_outlet& port) const noexcept
-  {
-    outlets.push_back(std::addressof(port));
-
-    out.samples.buffer = std::addressof(port->samples);
   }
 
   void operator()(ValueInput auto& in, ossia::value_inlet& port) const noexcept
@@ -126,6 +87,36 @@ struct InitPorts
       port->is_event = in.is_event;
     }
     in.port = std::addressof(*port);
+  }
+
+  void operator()(MidiInput auto& in, ossia::midi_inlet& port) const noexcept
+  {
+    inlets.push_back(std::addressof(port));
+
+    in.port = std::addressof(*port);
+  }
+
+  void operator()(ControlInput auto& ctrl, ossia::value_inlet& port) const noexcept
+  {
+    inlets.push_back(std::addressof(port));
+
+    port->is_event = true;
+    //ctrl.port = std::addressof(*port);
+
+    ctrl.control().setup_exec(port);
+  }
+};
+
+template<typename Exec_T>
+struct InitOutlets
+{
+  Exec_T& self;
+  ossia::outlets& outlets;
+  void operator()(AudioOutput auto& out, ossia::audio_outlet& port) const noexcept
+  {
+    outlets.push_back(std::addressof(port));
+
+    out.samples.buffer = std::addressof(port->samples);
   }
 
   void operator()(ValueOutput auto& out, ossia::value_outlet& port) const noexcept
@@ -140,13 +131,6 @@ struct InitPorts
     }
   }
 
-  void operator()(MidiInput auto& in, ossia::midi_inlet& port) const noexcept
-  {
-    inlets.push_back(std::addressof(port));
-
-    in.port = std::addressof(*port);
-  }
-
   void operator()(MidiOutput auto& out, ossia::midi_outlet& port) const noexcept
   {
     outlets.push_back(std::addressof(port));
@@ -154,64 +138,16 @@ struct InitPorts
     out.port = std::addressof(*port);
   }
 
-  void operator()(ControlInput auto& ctrl, ossia::value_inlet& port) const noexcept
-  {
-    inlets.push_back(std::addressof(port));
-
-    port->is_event = true;
-    //ctrl.port = std::addressof(*port);
-
-    ctrl.control.setup_exec(port);
-  }
-
   void operator()(ControlOutput auto& ctrl, ossia::value_outlet& port) const noexcept
   {
     outlets.push_back(std::addressof(port));
 
     //ctrl.port = std::addressof(*port);
-    ctrl.control.setup_exec(port);
+    ctrl.control().setup_exec(port);
   }
 };
 
 
-template<typename Exec_T>
-struct PreparePorts
-{
-  Exec_T& self;
-
-  void operator()(AudioInput auto& in, ossia::audio_inlet& port) const noexcept
-  {
-  }
-
-  void operator()(AudioOutput auto& out, ossia::audio_outlet& port) const noexcept
-  {
-  }
-
-  void operator()(ValueInput auto& in, ossia::value_inlet& port) const noexcept
-  {
-  }
-
-  void operator()(ValueOutput auto& out, ossia::value_outlet& port) const noexcept
-  {
-  }
-
-  void operator()(MidiInput auto& in, ossia::midi_inlet& port) const noexcept
-  {
-  }
-
-  void operator()(MidiOutput auto& out, ossia::midi_outlet& port) const noexcept
-  {
-  }
-
-  void operator()(ControlInput auto& ctrl, ossia::value_inlet& port) const noexcept
-  {
-  }
-
-  void operator()(ControlOutput auto& ctrl, ossia::value_outlet& port) const noexcept
-  {
-  }
-
-};
 template <typename Node_T>
 class safe_node final : public ossia::nonowning_graph_node
 {
@@ -252,24 +188,25 @@ public:
   ossia::spsc_queue<control_input_values_type> control_ins_queue;
   ossia::spsc_queue<control_output_values_type> control_outs_queue;
 
-  int sampleRate{}, bufferSize{};
-
   safe_node(ossia::exec_state_facade st) noexcept
-      : sampleRate{st.sampleRate()}
-      , bufferSize{st.bufferSize()}
   {
     m_inlets.reserve(info::inlet_size);
     m_outlets.reserve(info::outlet_size);
 
-    InitPorts<safe_node> port_init_func{*this, this->m_inlets, this->m_outlets};
     if constexpr(requires { state.inputs; })
     {
+      InitInlets<safe_node> port_init_func{*this, this->m_inlets};
       ossia::for_each_in_tuples(boost::pfr::detail::tie_as_tuple(state.inputs), this->input_ports, port_init_func);
     }
     if constexpr(requires { state.outputs; })
     {
+      InitOutlets<safe_node> port_init_func{*this, this->m_outlets};
       ossia::for_each_in_tuples(boost::pfr::detail::tie_as_tuple(state.outputs), this->output_ports, port_init_func);
     }
+
+    // Initialize buffers if possible
+    if constexpr(requires { state.reset(st); })
+      state.reset(st);
   }
 
   template <typename T, std::size_t ControlN>
@@ -291,7 +228,7 @@ public:
     using namespace boost::pfr;
     using namespace std;
     using control_member = std::tuple_element_t<ControlN, typename info::control_input_tuple>;
-    using control_type = decltype(control_member::control);
+    using control_type = decltype(control_member::control());
     using control_value_type = typename control_type::type;
 
     // ControlN = 0: first control in this->controls, this->control_tuple, etc..
@@ -340,7 +277,7 @@ public:
   void load_control_from_port(Vec& vec, const Vp& vp) noexcept
   {
     using namespace boost::pfr;
-    constexpr const auto ctrl = std::remove_reference_t<decltype(get<PortN>(state.inputs))>::control;
+    constexpr const auto ctrl = (std::remove_reference_t<decltype(get<PortN>(state.inputs))>::control)();
     if constexpr(Validate)
     {
       for (auto& v : vp)

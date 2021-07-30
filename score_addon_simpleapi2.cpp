@@ -6,8 +6,8 @@
 
 #include <score/plugins/FactorySetup.hpp>
 
-#include <SimpleApi2/Distortion.hpp>
-#include <SimpleApi2/CCC.hpp>
+#include <Examples/Distortion.hpp>
+#include <Examples/CCC.hpp>
 #include <boost/pfr.hpp>
 #include <Process/ProcessMetadata.hpp>
 #include <Process/Process.hpp>

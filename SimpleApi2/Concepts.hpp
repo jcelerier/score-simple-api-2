@@ -22,7 +22,6 @@ namespace SimpleApi2
 
 struct Meta_base
 {
-
   static const constexpr double recommended_height{};
   static const constexpr Process::ProcessFlags flags
       = Process::ProcessFlags(Process::ProcessFlags::SupportsLasting | Process::ProcessFlags::ControlSurface);
@@ -113,9 +112,13 @@ concept MidiOutput = NamedPort<T> && requires (T a) {
 };
 
 template<typename T>
-concept ControlInput = std::is_base_of_v<control_input, T>;
+concept ControlInput = requires (T a) {
+  { a.control() };
+};
 template<typename T>
-concept ControlOutput = std::is_base_of_v<control_output, T>;
+concept ControlOutput = requires (T a) {
+  { a.display() };
+};
 
 
 
@@ -135,40 +138,45 @@ template<typename T>
 using IsControlInput = typename std::integral_constant< bool, ControlInput<T>>;
 template<typename T>
 using IsControlOutput = typename std::integral_constant< bool, ControlOutput<T>>;
+#define meta_attribute_uuid(name, value) static uuid_constexpr auto uuid() { return_uuid(value); }
 
-template<typename T>
-concept HaveAudioInputs = requires (T a) {
-  { a.audio_inputs };
+#define meta_attribute_name(name, value) static constexpr auto name() { return value; }
+#define meta_attribute_pretty_name(name, value) static constexpr auto prettyName() { return value; }
+#define meta_attribute_script_name(name, value) static constexpr auto objectKey() { return value; }
+#define meta_attribute_category(name, value) static constexpr auto category() { return #value; }
+#define meta_attribute_author(name, value) static constexpr auto author() { return value; }
+#define meta_attribute_kind(name, value) static constexpr auto kind() { return Process::ProcessCategory::value; }
+#define meta_attribute_description(name, value) static constexpr auto description() { return value; }
+
+#define meta_attribute(name, value) meta_attribute_ ## name(name, value)
+#define meta_control(type, ...) static constexpr type control() { return {__VA_ARGS__}; }
+#define meta_display(type, ...) static constexpr type display() { return {__VA_ARGS__}; }
+struct multichannel_audio_view {
+  ossia::audio_vector* buffer{};
+  const ossia::audio_channel& operator[](std::size_t i) const noexcept { return (*buffer)[i]; };
+  std::size_t size() const noexcept { return buffer->size(); }
+  void resize(std::size_t i) const noexcept { return buffer->resize(i); }
+  void reserve(std::size_t channels, std::size_t bufferSize)
+  {
+    resize(channels);
+    for(auto& vec : *buffer) vec.reserve(bufferSize);
+  }
 };
-template<typename T>
-concept HaveAudioOutputs = requires (T a) {
-  { a.audio_outputs };
+
+struct multichannel_audio {
+  ossia::audio_vector* buffer{};
+  ossia::audio_channel& operator[](int i) const noexcept { return (*buffer)[i];};
+  std::size_t size() const noexcept { return buffer->size(); }
+  void resize(std::size_t i) const noexcept { return buffer->resize(i); }
+  void reserve(std::size_t channels, std::size_t bufferSize)
+  {
+    resize(channels);
+    for(auto& vec : *buffer) vec.reserve(bufferSize);
+  }
 };
-template<typename T>
-concept HaveMidiInputs = requires (T a) {
-  { a.midi_inputs };
-};
-template<typename T>
-concept HaveMidiOutputs = requires (T a) {
-  { a.midi_outputs };
-};
-template<typename T>
-concept HaveValueInputs = requires (T a) {
-  { a.value_inputs };
-};
-template<typename T>
-concept HaveValueOutputs = requires (T a) {
-  { a.value_outputs };
-};
-template<typename T>
-concept HaveControlInputs = requires (T a) {
-  { a.control_inputs };
-};
-template<typename T>
-concept HaveControlOutputs = requires (T a) {
-  { a.control_outputs };
-};
+
 }
+
 
 
 #include <boost/pfr.hpp>

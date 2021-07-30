@@ -77,7 +77,7 @@ struct midi_output
 
 template<typename T>
 concept NamedPort = requires(T a) {
-  { a.name } -> std::same_as<const char* const>;
+  { QString::fromUtf8(a.name()) } ;
 };
 
 template<typename T>

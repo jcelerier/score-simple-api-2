@@ -4,13 +4,13 @@
 #include <Control/Widgets.hpp>
 #include <ossia/dataflow/safe_nodes/tick_policies.hpp>
 
-struct multichannel_audio_input {
+struct multichannel_audio_view {
   const ossia::audio_vector* buffer{};
   const ossia::audio_channel& operator[](std::size_t i) const noexcept { return (*buffer)[i]; };
   std::size_t size() const noexcept { return buffer->size(); }
 };
 
-struct multichannel_audio_output {
+struct multichannel_audio {
   ossia::audio_vector* buffer{};
   ossia::audio_channel& operator[](int i) const noexcept { return (*buffer)[i];};
   std::size_t size() const noexcept { return buffer->size(); }
@@ -45,12 +45,12 @@ struct Distortion
   using control_policy = ossia::safe_nodes::last_tick;
 
   struct inputs {
-    struct main_inlet {
-      constant name = "In";
-      multichannel_audio_input samples;
+    struct {
+      constant name() { return "In"; }
+      multichannel_audio_view samples;
     } audio;
 
-    struct gain : control_input{
+    struct gain : control_input {
       constant control = Control::FloatSlider{ "Gain", 0.f, 100.f, 10.f };
 
       float value = 10.f;
@@ -58,9 +58,9 @@ struct Distortion
   } inputs;
 
   struct outputs {
-    struct main_outlet {
-      constant name = "Out";
-      multichannel_audio_output samples;
+    struct {
+      constant name() { return "Out"; }
+      multichannel_audio samples;
     } audio;
 
   } outputs;

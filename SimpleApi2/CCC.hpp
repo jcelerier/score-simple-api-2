@@ -30,7 +30,7 @@ struct CCC
 
   struct outputs {
     struct main_outlet : value_output {
-      constant name = "Output";
+      constant name() { return "Out"; }
     } out;
   } outputs;
 

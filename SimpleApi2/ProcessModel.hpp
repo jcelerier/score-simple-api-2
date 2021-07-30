@@ -142,13 +142,13 @@ struct PortInitFunc
   void operator()(const AudioInput auto& in)
   {
     auto p = new Process::AudioInlet(Id<Process::Port>(inlet++), &self);
-    p->setName(QString::fromUtf8(in.name));
+    p->setName(QString::fromUtf8(in.name()));
     ins.push_back(p);
   }
   void operator()(const AudioOutput auto& out)
   {
     auto p = new Process::AudioOutlet(Id<Process::Port>(outlet++), &self);
-    p->setName(QString::fromUtf8(out.name));
+    p->setName(QString::fromUtf8(out.name()));
     if (outlet == 1)
       p->setPropagate(true);
     outs.push_back(p);
@@ -156,25 +156,25 @@ struct PortInitFunc
   void operator()(const ValueInput auto& in)
   {
     auto p = new Process::ValueInlet(Id<Process::Port>(inlet++), &self);
-    p->setName(QString::fromUtf8(in.name));
+    p->setName(QString::fromUtf8(in.name()));
     ins.push_back(p);
   }
   void operator()(const ValueOutput auto& out)
   {
     auto p = new Process::ValueOutlet(Id<Process::Port>(outlet++), &self);
-    p->setName(QString::fromUtf8(out.name));
+    p->setName(QString::fromUtf8(out.name()));
     outs.push_back(p);
   }
   void operator()(const MidiInput auto& in)
   {
     auto p = new Process::MidiInlet(Id<Process::Port>(inlet++), &self);
-    p->setName(QString::fromUtf8(in.name));
+    p->setName(QString::fromUtf8(in.name()));
     ins.push_back(p);
   }
   void operator()(const MidiOutput auto& out)
   {
     auto p = new Process::MidiOutlet(Id<Process::Port>(outlet++), &self);
-    p->setName(QString::fromUtf8(out.name));
+    p->setName(QString::fromUtf8(out.name()));
     outs.push_back(p);
   }
   void operator()(const ControlInput auto& ctrl)

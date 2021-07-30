@@ -6,8 +6,8 @@
 
 #include <score/plugins/FactorySetup.hpp>
 
-
 #include <SimpleApi2/Distortion.hpp>
+#include <SimpleApi2/CCC.hpp>
 #include <boost/pfr.hpp>
 #include <Process/ProcessMetadata.hpp>
 #include <Process/Process.hpp>
@@ -87,7 +87,7 @@ score_addon_simpleapi2::factories(
     const score::ApplicationContext& ctx,
     const score::InterfaceKey& key) const
 {
-  return SimpleApi2::instantiate_fx<SimpleApi2::Distortion>(ctx, key);
+  return SimpleApi2::instantiate_fx<SimpleApi2::Distortion, SimpleApi2::CCC>(ctx, key);
 }
 
 std::vector<score::PluginKey> score_addon_simpleapi2::required() const

@@ -60,6 +60,7 @@ struct Metadata<Process::Descriptor_k, SimpleApi2::ProcessModel<Info>>
   static std::vector<Process::PortType> inletDescription()
   {
     std::vector<Process::PortType> port;
+    /*
     for (std::size_t i = 0; i < info::audio_in_count; i++)
       port.push_back(Process::PortType::Audio);
     for (std::size_t i = 0; i < info::midi_in_count; i++)
@@ -68,11 +69,13 @@ struct Metadata<Process::Descriptor_k, SimpleApi2::ProcessModel<Info>>
       port.push_back(Process::PortType::Message);
     for (std::size_t i = 0; i < info::control_in_count; i++)
       port.push_back(Process::PortType::Message);
+    */
     return port;
   }
   static std::vector<Process::PortType> outletDescription()
   {
     std::vector<Process::PortType> port;
+    /*
     for (std::size_t i = 0; i < info::audio_out_count; i++)
       port.push_back(Process::PortType::Audio);
     for (std::size_t i = 0; i < info::midi_out_count; i++)
@@ -81,6 +84,7 @@ struct Metadata<Process::Descriptor_k, SimpleApi2::ProcessModel<Info>>
       port.push_back(Process::PortType::Message);
     for (std::size_t i = 0; i < info::control_out_count; i++)
       port.push_back(Process::PortType::Message);
+    */
     return port;
   }
   static Process::Descriptor get()
@@ -100,7 +104,13 @@ struct Metadata<Process::Descriptor_k, SimpleApi2::ProcessModel<Info>>
 template <typename Info>
 struct Metadata<Process::ProcessFlags_k, SimpleApi2::ProcessModel<Info>>
 {
-  static Process::ProcessFlags get() noexcept { return Info::Metadata::flags; }
+  static Process::ProcessFlags get() noexcept {
+    if constexpr(requires { Info::Metadata::flags; }) {
+      return Info::Metadata::flags;
+    } else {
+      return Process::ProcessFlags(Process::ProcessFlags::SupportsLasting | Process::ProcessFlags::ControlSurface);
+    }
+  }
 };
 template <typename Info>
 struct Metadata<ObjectKey_k, SimpleApi2::ProcessModel<Info>>
@@ -184,143 +194,77 @@ struct PortInitFunc
     }
   }
 };
+struct PortLoadFunc
+{
+  Process::ProcessModel& self;
+  Process::Inlets& ins;
+  Process::Outlets& outs;
+  int inlet = 0;
+  int outlet = 0;
+  void operator()(const AudioInput auto& in)
+  {
+    auto p = new Process::AudioInlet(Id<Process::Port>(inlet++), &self);
+    p->setName(QString::fromUtf8(in.name));
+    ins.push_back(p);
+  }
+  void operator()(const AudioOutput auto& out)
+  {
+    auto p = new Process::AudioOutlet(Id<Process::Port>(outlet++), &self);
+    p->setName(QString::fromUtf8(out.name));
+    if (outlet == 1)
+      p->setPropagate(true);
+    outs.push_back(p);
+  }
+  void operator()(const ValueInput auto& in)
+  {
+    auto p = new Process::ValueInlet(Id<Process::Port>(inlet++), &self);
+    p->setName(QString::fromUtf8(in.name));
+    ins.push_back(p);
+  }
+  void operator()(const ValueOutput auto& out)
+  {
+    auto p = new Process::ValueOutlet(Id<Process::Port>(outlet++), &self);
+    p->setName(QString::fromUtf8(out.name));
+    outs.push_back(p);
+  }
+  void operator()(const MidiInput auto& in)
+  {
+    auto p = new Process::MidiInlet(Id<Process::Port>(inlet++), &self);
+    p->setName(QString::fromUtf8(in.name));
+    ins.push_back(p);
+  }
+  void operator()(const MidiOutput auto& out)
+  {
+    auto p = new Process::MidiOutlet(Id<Process::Port>(outlet++), &self);
+    p->setName(QString::fromUtf8(out.name));
+    outs.push_back(p);
+  }
+  void operator()(const ControlInput auto& ctrl)
+  {
+    if (auto p = ctrl.control.create_inlet(Id<Process::Port>(inlet++), &self))
+    {
+      p->hidden = true;
+      ins.push_back(p);
+    }
+  }
+  void operator()(const ControlOutput auto& ctrl)
+  {
+    if (auto p = ctrl.control.create_outlet(Id<Process::Port>(outlet++), &self))
+    {
+      p->hidden = true;
+      outs.push_back(p);
+    }
+  }
+};
 
 template<typename Node, typename Func>
 void for_each_port(Node& node, Func&& func)
 {
-  if constexpr(requires { node.audio_inputs; })
-  boost::pfr::for_each_field_ref(node.audio_inputs, func);
-  if constexpr(requires { node.midi_inputs; })
-  boost::pfr::for_each_field_ref(node.midi_inputs, func);
-  if constexpr(requires { node.value_inputs; })
-  boost::pfr::for_each_field_ref(node.value_inputs, func);
-  if constexpr(requires { node.control_inputs; })
-  boost::pfr::for_each_field_ref(node.control_inputs, func);
-
-  if constexpr(requires { node.audio_outputs; })
-  boost::pfr::for_each_field_ref(node.audio_outputs, func);
-  if constexpr(requires { node.midi_outputs; })
-  boost::pfr::for_each_field_ref(node.midi_outputs, func);
-  if constexpr(requires { node.value_outputs; })
-  boost::pfr::for_each_field_ref(node.value_outputs, func);
-  if constexpr(requires { node.control_outputs; })
-  boost::pfr::for_each_field_ref(node.control_outputs, func);
+  if constexpr(requires { node.inputs; })
+    boost::pfr::for_each_field_ref(node.inputs, func);
+  if constexpr(requires { node.outputs; })
+    boost::pfr::for_each_field_ref(node.outputs, func);
 }
-
-struct PortSetup
-{
-  template <typename Node_T, typename T>
-  static void load(DataStream::Deserializer& s, T& self)
-  {
-    Node_T node; // TODO
-
-    auto& ins = self.m_inlets;
-    auto& outs = self.m_outlets;
-    for (std::size_t k = 0; k < info_functions_2<Node_T>::audio_in_count; k++)
-    {
-      ins.push_back(
-          deserialize_known_interface<Process::AudioInlet>(s, &self));
-    }
-    for (std::size_t k = 0; k < info_functions_2<Node_T>::midi_in_count; k++)
-    {
-      ins.push_back(deserialize_known_interface<Process::MidiInlet>(s, &self));
-    }
-    for (std::size_t k = 0; k < info_functions_2<Node_T>::value_in_count; k++)
-    {
-      ins.push_back(
-          deserialize_known_interface<Process::ValueInlet>(s, &self));
-    }
-    boost::pfr::for_each_field_ref(node.control_inputs, [&] (const auto& ctrl) {
-                                     if (auto p = ctrl.control.create_inlet(s, &self))
-                                     {
-                                       p->hidden = true;
-                                       ins.push_back(p);
-                                     }
-                                   });
-
-    for (std::size_t k = 0; k < info_functions_2<Node_T>::audio_out_count; k++)
-    {
-      outs.push_back(
-          deserialize_known_interface<Process::AudioOutlet>(s, &self));
-    }
-    for (std::size_t k = 0; k < info_functions_2<Node_T>::midi_out_count; k++)
-    {
-      outs.push_back(
-          deserialize_known_interface<Process::MidiOutlet>(s, &self));
-    }
-    for (std::size_t k = 0; k < info_functions_2<Node_T>::value_out_count; k++)
-    {
-      outs.push_back(
-          deserialize_known_interface<Process::ValueOutlet>(s, &self));
-    }
-    boost::pfr::for_each_field_ref(node.control_outputs, [&] (const auto& ctrl) {
-                                     if (auto p = ctrl.control.create_outlet(s, &self))
-                                     {
-                                       p->hidden = true;
-                                       outs.push_back(p);
-                                     }
-                                   });
-  }
-
-  template <typename Node_T, typename T>
-  static void load(
-      const rapidjson::Value::ConstArray& inlets,
-      const rapidjson::Value::ConstArray& outlets,
-      T& self)
-  {
-    Node_T node; // TODO
-
-    auto& ins = self.m_inlets;
-    auto& outs = self.m_outlets;
-    std::size_t inlet = 0;
-    for (std::size_t k = 0; k < info_functions_2<Node_T>::audio_in_count; k++)
-    {
-      ins.push_back(deserialize_known_interface<Process::AudioInlet>(
-          JSONWriter{inlets[inlet++]}, &self));
-    }
-    for (std::size_t k = 0; k < info_functions_2<Node_T>::midi_in_count; k++)
-    {
-      ins.push_back(deserialize_known_interface<Process::MidiInlet>(
-          JSONWriter{inlets[inlet++]}, &self));
-    }
-    for (std::size_t k = 0; k < info_functions_2<Node_T>::value_in_count; k++)
-    {
-      ins.push_back(deserialize_known_interface<Process::ValueInlet>(
-          JSONWriter{inlets[inlet++]}, &self));
-    }
-
-    boost::pfr::for_each_field_ref(node.control_inputs, [&] (const auto& ctrl) {
-                                     if (auto p = ctrl.control.create_inlet(JSONWriter{inlets[inlet++]}, &self))
-                                     {
-                                       p->hidden = true;
-                                       ins.push_back(p);
-                                     }
-                                   });
-    int outlet = 0;
-    for (std::size_t k = 0; k < info_functions_2<Node_T>::audio_out_count; k++)
-    {
-      outs.push_back(deserialize_known_interface<Process::AudioOutlet>(
-          JSONWriter{outlets[outlet++]}, &self));
-    }
-    for (std::size_t k = 0; k < info_functions_2<Node_T>::midi_out_count; k++)
-    {
-      outs.push_back(deserialize_known_interface<Process::MidiOutlet>(
-          JSONWriter{outlets[outlet++]}, &self));
-    }
-    for (std::size_t k = 0; k < info_functions_2<Node_T>::value_out_count; k++)
-    {
-      outs.push_back(deserialize_known_interface<Process::ValueOutlet>(
-          JSONWriter{outlets[outlet++]}, &self));
-    }
-    boost::pfr::for_each_field_ref(node.control_outputs, [&] (const auto& ctrl) {
-                                     if (auto p = ctrl.control.create_outlet(JSONWriter{outlets[outlet++]}, &self))
-                                     {
-                                       p->hidden = true;
-                                       outs.push_back(p);
-                                     }
-                                   });
-  }
-};
 
 template <typename Info, typename>
 class ProcessModel final : public Process::ProcessModel
@@ -329,49 +273,8 @@ class ProcessModel final : public Process::ProcessModel
   PROCESS_METADATA_IMPL(ProcessModel<Info>)
   friend struct TSerializer<DataStream, SimpleApi2::ProcessModel<Info>>;
   friend struct TSerializer<JSONObject, SimpleApi2::ProcessModel<Info>>;
-  friend struct SimpleApi2::PortSetup;
 
 public:
-  ossia::value control(std::size_t i) const
-  {
-    static_assert(SimpleApi2::info_functions_2<Info>::control_in_count != 0);
-    constexpr auto start
-        = SimpleApi2::info_functions_2<Info>::control_start;
-
-    return static_cast<Process::ControlInlet*>(m_inlets[start + i])->value();
-  }
-
-  void setControl(std::size_t i, ossia::value v)
-  {
-    static_assert(SimpleApi2::info_functions_2<Info>::control_in_count != 0);
-    constexpr auto start
-        = SimpleApi2::info_functions_2<Info>::control_start;
-
-    static_cast<Process::ControlInlet*>(m_inlets[start + i])
-        ->setValue(std::move(v));
-  }
-
-  ossia::value controlOut(std::size_t i) const
-  {
-    static_assert(
-        SimpleApi2::info_functions_2<Info>::control_out_count != 0);
-    constexpr auto start
-        = SimpleApi2::info_functions_2<Info>::control_out_start;
-
-    return static_cast<Process::ControlOutlet*>(m_outlets[start + i])->value();
-  }
-
-  void setControlOut(std::size_t i, ossia::value v)
-  {
-    static_assert(
-        SimpleApi2::info_functions_2<Info>::control_out_count != 0);
-    constexpr auto start
-        = SimpleApi2::info_functions_2<Info>::control_out_start;
-
-    static_cast<Process::ControlOutlet*>(m_outlets[start + i])
-        ->setValue(std::move(v));
-  }
-
   ProcessModel(
       const TimeVal& duration,
       const Id<Process::ProcessModel>& id,
@@ -411,25 +314,13 @@ struct TSerializer<DataStream, Model<Info, SimpleApi2::is_control>>
   using model_type = Model<Info, SimpleApi2::is_control>;
   static void readFrom(DataStream::Serializer& s, const model_type& obj)
   {
-    using namespace Control;
-    for (auto obj : obj.inlets())
-    {
-      s.stream() << *obj;
-    }
-
-    for (auto obj : obj.outlets())
-    {
-      s.stream() << *obj;
-    }
+    Process::readPorts(s, obj.m_inlets, obj.m_outlets);
     s.insertDelimiter();
   }
 
   static void writeTo(DataStream::Deserializer& s, model_type& obj)
   {
-    using namespace Control;
-
-    SimpleApi2::PortSetup::load<Info>(s, obj);
-
+    Process::writePorts(s, s.components.interfaces<Process::PortFactoryList>(), obj.m_inlets, obj.m_outlets, &obj);
     s.checkDelimiter();
   }
 };
@@ -442,19 +333,14 @@ struct TSerializer<JSONObject, Model<Info, SimpleApi2::is_control>>
   {
     using namespace Control;
 
-    Process::readPorts(s, obj.inlets(), obj.outlets());
-
+    Process::readPorts(s, obj.m_inlets, obj.m_outlets);
   }
 
   static void writeTo(JSONObject::Deserializer& s, model_type& obj)
   {
     using namespace Control;
 
-    const auto& inlets = s.obj["Inlets"].toArray();
-    const auto& outlets = s.obj["Outlets"].toArray();
-
-    SimpleApi2::PortSetup::load<Info>(inlets, outlets, obj);
-
+    Process::writePorts(s, s.components.interfaces<Process::PortFactoryList>(), obj.m_inlets, obj.m_outlets, &obj);
   }
 };
 

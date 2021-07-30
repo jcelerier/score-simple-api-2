@@ -17,6 +17,20 @@
 namespace SimpleApi2
 {
 
+template <typename Node_T, typename T, std::size_t ControlN>
+struct control_updater
+{
+  std::weak_ptr<Node_T> weak_node;
+  T v;
+  void operator()()
+  {
+    if(auto n = weak_node.lock())
+    {
+      n->template control_updated_from_ui<T, ControlN>(std::move(v));
+    }
+  }
+};
+
 template <typename Info_T, typename Node_T, typename Element>
 struct setup_Impl0
 {
@@ -25,7 +39,7 @@ struct setup_Impl0
   const std::shared_ptr<Node_T>& node_ptr;
   QObject* parent;
 
-  template <typename Idx_T>
+  template <typename ControlIndexT>
   struct con_validated
   {
     const Execution::Context& ctx;
@@ -34,23 +48,24 @@ struct setup_Impl0
     {
       using namespace boost::pfr;
       using namespace ossia::safe_nodes;
-      constexpr auto idx = Idx_T::value;
+      using Info = Info_T;
+      constexpr auto control_index = ControlIndexT::value;
+      using port_index_t = typename info_functions_2<Info>::template control_input_index<ControlIndexT::value>;
 
-      constexpr const auto ctrl = tuple_element_t<idx, decltype(Node_T::state.control_inputs)>::control;
-      using control_type = decltype(ctrl);
+      constexpr const auto control_spec = tuple_element_t<port_index_t::value, decltype(Node_T::state.inputs)>::control;
+      using control_type = decltype(control_spec);
+
       using control_value_type = typename control_type::type;
 
       if (auto node = weak_node.lock())
       {
-        constexpr const auto ctrl = std::get<idx>(Info_T::Metadata::controls);
-        if (auto v = ctrl.fromValue(val))
-          ctx.executionQueue.enqueue(control_updater<control_value_type>{
-              std::get<idx>(node->controls), std::move(*v)});
+        if (auto v = control_spec.fromValue(val))
+          ctx.executionQueue.enqueue(control_updater<Node_T, control_value_type, control_index>{weak_node, std::move(*v)});
       }
     }
   };
 
-  template <typename Idx_T>
+  template <typename ControlIndexT>
   struct con_unvalidated
   {
     const Execution::Context& ctx;
@@ -59,57 +74,59 @@ struct setup_Impl0
     {
       using namespace boost::pfr;
       using namespace ossia::safe_nodes;
-      constexpr auto idx = Idx_T::value;
+      using Info = Info_T;
+      constexpr auto control_index = ControlIndexT::value;
+      using port_index_t = typename info_functions_2<Info>::template control_input_index<ControlIndexT::value>;
 
-      constexpr const auto ctrl = tuple_element_t<idx, decltype(Node_T::state.control_inputs)>::control;
-      using control_type = decltype(ctrl);
+      constexpr const auto control_spec = tuple_element_t<port_index_t::value, decltype(Node_T::state.inputs)>::control;
+      using control_type = decltype(control_spec);
+
       using control_value_type = typename control_type::type;
 
       if (auto node = weak_node.lock())
       {
-        ctx.executionQueue.enqueue(control_updater<control_value_type>{
-            get<idx>(node->controls), ctrl.fromValue(val)});
+        ctx.executionQueue.enqueue(control_updater<Node_T, control_value_type, control_index>{weak_node, control_spec.fromValue(val)});
       }
     }
   };
 
-  template <typename T>
-  constexpr void operator()(T)
+  template <typename ControlIndexT>
+  constexpr void operator()(ControlIndexT)
   {
     using namespace boost::pfr;
     using namespace ossia::safe_nodes;
     using Info = Info_T;
-    constexpr int idx = T::value;
+    constexpr int control_index = ControlIndexT::value;
+    using port_index_t = typename info_functions_2<Info>::template control_input_index<ControlIndexT::value>;
 
-    constexpr const auto ctrl = tuple_element_t<idx, decltype(Node_T::state.control_inputs)>::control;
-    using control_type = decltype(ctrl);
-    constexpr const auto control_start = info_functions_2<Info>::control_start;
-    auto inlet = static_cast<Process::ControlInlet*>(
-        element.inlets()[control_start + idx]);
+    constexpr const auto control_spec = tuple_element_t<port_index_t::value, decltype(Node_T::state.inputs)>::control;
+    using control_type = decltype(control_spec);
+
+    auto inlet = static_cast<Process::ControlInlet*>(element.inlets()[port_index_t::value]);
 
     auto& node = *node_ptr;
     std::weak_ptr<Node_T> weak_node = node_ptr;
 
     if constexpr (control_type::must_validate)
     {
-      if (auto res = ctrl.fromValue(element.control(idx)))
-        get<idx>(node.controls) = *res;
+      if (auto res = control_spec.fromValue(inlet->value()))
+        get<control_index>(node.controls) = *res;
 
       QObject::connect(
           inlet,
           &Process::ControlInlet::valueChanged,
           parent,
-          con_validated<T>{ctx, weak_node});
+          con_validated<ControlIndexT>{ctx, weak_node});
     }
     else
     {
-      get<idx>(node.controls) = ctrl.fromValue(element.control(idx));
+      get<control_index>(node.control_input) = control_spec.fromValue(inlet->value());
 
       QObject::connect(
           inlet,
           &Process::ControlInlet::valueChanged,
           parent,
-          con_unvalidated<T>{ctx, weak_node});
+          con_unvalidated<ControlIndexT>{ctx, weak_node});
     }
   }
 };
@@ -117,36 +134,45 @@ struct setup_Impl0
 template <typename Info, typename Element, typename Node_T>
 struct setup_Impl1
 {
-  typename Node_T::controls_values_type& arr;
+  typename Node_T::control_input_values_type& arr;
   Element& element;
 
-  template <typename T>
-  void operator()(T)
+  template <typename ControlIndexT>
+  void operator()(ControlIndexT)
   {
     using namespace boost::pfr;
     using namespace ossia::safe_nodes;
 
-    constexpr const int idx = T::value;
-    constexpr const auto ctrl = tuple_element_t<idx, decltype(Node_T::state.control_inputs)>::control;
+    constexpr int control_index = ControlIndexT::value;
+    using port_index_t = typename info_functions_2<Info>::template control_input_index<ControlIndexT::value>;
 
-    element.setControl(idx, ctrl.toValue(get<idx>(arr)));
+    constexpr const auto control_spec = tuple_element_t<port_index_t::value, decltype(Node_T::state.inputs)>::control;
+
+    auto inlet = static_cast<Process::ControlInlet*>(element.inlets()[port_index_t::value]);
+
+    inlet->setValue(control_spec.toValue(get<control_index>(arr)));
   }
 };
 
 template <typename Info, typename Element, typename Node_T>
 struct setup_Impl1_Out
 {
-  typename Node_T::control_outs_values_type& arr;
+  typename Node_T::control_output_values_type& arr;
   Element& element;
 
-  template <typename T>
-  void operator()(T)
+  template <typename ControlIndexT>
+  void operator()(ControlIndexT)
   {
+    using namespace boost::pfr;
     using namespace ossia::safe_nodes;
-    constexpr const auto ctrl
-        = std::get<T::value>(Info::Metadata::control_outs);
+    constexpr int control_index = ControlIndexT::value;
+    using port_index_t = typename info_functions_2<Info>::template control_output_index<ControlIndexT::value>;
 
-    element.setControlOut(T::value, ctrl.toValue(std::get<T::value>(arr)));
+    constexpr const auto control_spec = tuple_element_t<port_index_t::value, decltype(Node_T::state.outputs)>::control;
+
+    auto outlet = static_cast<Process::ControlOutlet*>(element.outlets()[port_index_t::value]);
+
+    outlet->setValue(control_spec.toValue(get<control_index>(arr)));
   }
 };
 
@@ -161,9 +187,10 @@ struct ExecutorGuiUpdate
     using namespace ossia::safe_nodes;
     // TODO disconnect the connection ? it will be disconnected shortly
     // after...
-    typename Node_T::controls_values_type arr;
+
+    typename Node_T::control_input_values_type arr;
     bool ok = false;
-    while (node.cqueue.try_dequeue(arr))
+    while (node.control_ins_queue.try_dequeue(arr))
     {
       ok = true;
     }
@@ -181,7 +208,7 @@ struct ExecutorGuiUpdate
     using namespace ossia::safe_nodes;
     // TODO disconnect the connection ? it will be disconnected shortly
     // after...
-    typename Node_T::control_outs_values_type arr;
+    typename Node_T::control_output_values_type arr;
     bool ok = false;
     while (node.control_outs_queue.try_dequeue(arr))
     {
@@ -278,7 +305,7 @@ public:
               "Executor::ProcessModel<Info>",
               parent}
   {
-    auto node = std::make_shared<safe_node<Info>>();
+    auto node = std::make_shared<safe_node<Info>>(ossia::exec_state_facade{ctx.execState.get()});
     this->node = node;
     this->m_ossia_process = std::make_shared<ossia::node_process>(this->node);
 

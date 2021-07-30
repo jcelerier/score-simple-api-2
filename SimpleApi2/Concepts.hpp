@@ -82,11 +82,15 @@ concept NamedPort = requires(T a) {
 
 template<typename T>
 concept AudioInput = NamedPort<T> && requires (T a) {
-  { a.port } -> std::same_as<const ossia::audio_port*>;
+  { a.samples.size() } -> std::convertible_to<std::size_t>;
+  { a.samples[0].size() } -> std::convertible_to<std::size_t>;
+  { a.samples[0][0] } -> std::same_as<const double&>;
 };
 template<typename T>
 concept AudioOutput = NamedPort<T> && requires (T a) {
-  { a.port } -> std::same_as<ossia::audio_port*>;
+  { a.samples.size() } -> std::convertible_to<std::size_t>;
+  { a.samples[0].size() } -> std::convertible_to<std::size_t>;
+  { a.samples[0][0] } -> std::same_as<double&>;
 };
 
 template<typename T>
@@ -114,6 +118,23 @@ template<typename T>
 concept ControlOutput = std::is_base_of_v<control_output, T>;
 
 
+
+template<typename T>
+using IsAudioInput = typename std::integral_constant< bool, AudioInput<T>>;
+template<typename T>
+using IsAudioOutput = typename std::integral_constant< bool, AudioOutput<T>>;
+template<typename T>
+using IsValueInput = typename std::integral_constant< bool, ValueInput<T>>;
+template<typename T>
+using IsValueOutput = typename std::integral_constant< bool, ValueOutput<T>>;
+template<typename T>
+using IsMidiInput = typename std::integral_constant< bool, MidiInput<T>>;
+template<typename T>
+using IsMidiOutput = typename std::integral_constant< bool, MidiOutput<T>>;
+template<typename T>
+using IsControlInput = typename std::integral_constant< bool, ControlInput<T>>;
+template<typename T>
+using IsControlOutput = typename std::integral_constant< bool, ControlOutput<T>>;
 
 template<typename T>
 concept HaveAudioInputs = requires (T a) {

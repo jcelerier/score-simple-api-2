@@ -4,6 +4,19 @@
 #include <Control/Widgets.hpp>
 #include <ossia/dataflow/safe_nodes/tick_policies.hpp>
 
+struct multichannel_audio_input {
+  const ossia::audio_vector* buffer{};
+  const ossia::audio_channel& operator[](std::size_t i) const noexcept { return (*buffer)[i]; };
+  std::size_t size() const noexcept { return buffer->size(); }
+};
+
+struct multichannel_audio_output {
+  ossia::audio_vector* buffer{};
+  ossia::audio_channel& operator[](int i) const noexcept { return (*buffer)[i];};
+  std::size_t size() const noexcept { return buffer->size(); }
+  void resize(std::size_t i) const noexcept { return buffer->resize(i); }
+};
+
 namespace SimpleApi2
 {
 struct Distortion
@@ -11,7 +24,7 @@ struct Distortion
   /**
    * An audio effect plug-in must provide some metadata: name, author, etc.
    */
-  struct Metadata : SimpleApi2::Meta_base
+  struct Metadata
   {
     static const constexpr auto prettyName = "Distortion";
     static const constexpr auto objectKey = "Distortion";
@@ -31,49 +44,39 @@ struct Distortion
    */
   using control_policy = ossia::safe_nodes::last_tick;
 
-  struct audio_inputs {
-    struct main_inlet : audio_input {
+  struct inputs {
+    struct main_inlet {
       constant name = "In";
-    } p1;
-  } audio_inputs;
+      multichannel_audio_input samples;
+    } audio;
 
-  struct audio_outputs {
-    struct main_outlet : audio_output {
-      constant name = "Out";
-    } p2;
-  } audio_outputs;
-
-/*
-  struct midi_inputs { } midi_inputs;
-  struct midi_outputs { } midi_outputs;
-  struct value_inputs { } value_inputs;
-  struct value_outputs { } value_outputs;
-*/
-
-  struct control_inputs {
     struct gain : control_input{
-      constant control = Control::FloatSlider{
-          "Gain", 0.f, 100.f, 10.f};
+      constant control = Control::FloatSlider{ "Gain", 0.f, 100.f, 10.f };
 
       float value = 10.f;
     } gain;
-  } control_inputs;
+  } inputs;
 
-  struct control_outputs { } control_outputs;
+  struct outputs {
+    struct main_outlet {
+      constant name = "Out";
+      multichannel_audio_output samples;
+    } audio;
 
+  } outputs;
 
   void run(
       const ossia::token_request& t,
       ossia::exec_state_facade st
   )
   {
-    auto& gain = control_inputs.gain;
-    auto& p1 = audio_inputs.p1;
-    auto& p2 = audio_outputs.p2;
+    auto& gain = inputs.gain;
+    auto& p1 = inputs.audio;
+    auto& p2 = outputs.audio;
 
     // Allocate outputs
-    const auto chans = p1.port->samples.size();
-    p2.port->samples.resize(chans);
+    const auto chans = p1.samples.size();
+    p2.samples.resize(chans);
 
     // When do we start writing, and for how many samples
     const int64_t N = t.physical_write_duration(st.modelToSamples());
@@ -82,13 +85,12 @@ struct Distortion
     // Process the input buffer
     for (std::size_t i = 0; i < chans; i++)
     {
-      auto& in = p1.port->samples[i];
-      auto& out = p2.port->samples[i];
+      auto& in = p1.samples[i];
+      auto& out = p2.samples[i];
+      out.resize(in.size());
 
       const int64_t samples = in.size();
       int64_t max = std::min(N, samples);
-
-      out.resize(samples);
 
       for (int64_t j = first_pos; j < max; j++)
       {

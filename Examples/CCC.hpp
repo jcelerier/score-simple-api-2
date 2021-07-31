@@ -1,8 +1,7 @@
 #pragma once
-#include <SimpleApi2/Concepts.hpp>
-#include <cmath>
+#include <SimpleApi2/Attributes.hpp>
 #include <Control/Widgets.hpp>
-#include <ossia/dataflow/safe_nodes/tick_policies.hpp>
+#include <ossia/detail/timed_vec.hpp>
 
 namespace SimpleApi2
 {
@@ -10,7 +9,7 @@ struct CCC
 {
   meta_attribute(pretty_name, "CCC");
   meta_attribute(script_name, CCC);
-  meta_attribute(category, Audio);
+  meta_attribute(category, Control);
   meta_attribute(kind, Generator);
   meta_attribute(author, "Peter Castine");
   meta_attribute(description, "1/f noise, using the Schuster/Procaccia deterministic (chaotic) algorithm");
@@ -20,27 +19,24 @@ struct CCC
     struct {
       meta_control(Control::ImpulseButton, "Bang");
 
-      ossia::safe_nodes::timed_vec<ossia::impulse> values;
+      ossia::timed_vec<ossia::impulse> values;
     } bang;
   } inputs;
 
   struct {
     struct {
       meta_attribute(name, "Out");
-      ossia::safe_nodes::timed_vec<float> values;
+      ossia::timed_vec<float> values;
     } out;
   } outputs;
 
   double current_value{0.1234};
 
-  void run(
-      const ossia::token_request& t,
-      ossia::exec_state_facade st
-      )
+  void operator()()
   {
     for(auto& [timestamp, value] : inputs.bang.values)
     {
-      // CCC algorithm
+      // CCC algorithm, copied verbatim from the LitterPower source code.
       {
         constexpr double kMinPink = 1.0 / 525288.0;
 

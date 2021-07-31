@@ -43,8 +43,6 @@ template<AudioInput T>
 struct get_ossia_inlet_type<T> { using type = ossia::audio_inlet; };
 template<ValueInput T>
 struct get_ossia_inlet_type<T> { using type = ossia::value_inlet; };
-template<TimedValueInput T>
-struct get_ossia_inlet_type<T> { using type = ossia::value_inlet; };
 template<MidiInput T>
 struct get_ossia_inlet_type<T> { using type = ossia::midi_inlet; };
 template<ControlInput T>
@@ -55,8 +53,6 @@ struct get_ossia_outlet_type;
 template<AudioOutput T>
 struct get_ossia_outlet_type<T> { using type = ossia::audio_outlet; };
 template<ValueOutput T>
-struct get_ossia_outlet_type<T> { using type = ossia::value_outlet; };
-template<TimedValueOutput T>
 struct get_ossia_outlet_type<T> { using type = ossia::value_outlet; };
 template<MidiOutput T>
 struct get_ossia_outlet_type<T> { using type = ossia::midi_outlet; };
@@ -82,7 +78,25 @@ template<typename T>
 struct uses_timed_values : std::conditional_t<requires { T{}.values; }, std::true_type, std::false_type> { };
 
 template <typename Node_T>
-struct info_functions_2
+struct inlet_reflection
+{
+  struct inputs_type { };
+  using inputs_tuple = std::tuple<>;
+  using inputs_indices = std::tuple<>;
+  using ossia_inputs_tuple = std::tuple<>;
+  using control_input_indices = std::tuple<>;
+  using control_input_tuple = std::tuple<>;
+  using control_input_values_type = std::tuple<>;
+  static constexpr auto inlet_size = 0;
+  static constexpr auto audio_in_count = 0;
+  static constexpr auto value_in_count = 0;
+  static constexpr auto midi_in_count = 0;
+  static constexpr auto control_in_count = 0;
+};
+
+template <typename Node_T>
+requires DataflowNode<Node_T> && requires (Node_T t){ t.inputs; }
+struct inlet_reflection<Node_T>
 {
   // Anonymous struct:
   // struct {
@@ -118,7 +132,35 @@ struct info_functions_2
   // tuple<float>
   using control_input_values_type = typename SimpleApi2::get_control_type_list<control_input_tuple>::type;
 
+  static constexpr auto inlet_size = std::tuple_size_v<inputs_tuple>;
+  static constexpr auto audio_in_count = boost::mp11::mp_count_if<inputs_tuple, IsAudioInput>::value;
+  static constexpr auto value_in_count = boost::mp11::mp_count_if<inputs_tuple, IsValueInput>::value;
+  static constexpr auto midi_in_count = boost::mp11::mp_count_if<inputs_tuple, IsMidiInput>::value;
+  static constexpr auto control_in_count = boost::mp11::mp_count_if<inputs_tuple, IsControlInput>::value;
+};
 
+
+template <typename Node_T>
+struct outlet_reflection
+{
+  struct outputs_type { };
+  using outputs_tuple = std::tuple<>;
+  using outputs_indices = std::tuple<>;
+  using ossia_outputs_tuple = std::tuple<>;
+  using control_output_indices = std::tuple<>;
+  using control_output_tuple = std::tuple<>;
+  using control_output_values_type = std::tuple<>;
+  static constexpr auto outlet_size = 0;
+  static constexpr auto audio_out_count = 0;
+  static constexpr auto value_out_count = 0;
+  static constexpr auto midi_out_count = 0;
+  static constexpr auto control_out_count = 0;
+};
+
+template <typename Node_T>
+requires DataflowNode<Node_T> && requires (Node_T t){ t.outputs; }
+struct outlet_reflection<Node_T>
+{
   using outputs_type = decltype(Node_T::outputs);
 
   using outputs_tuple = decltype(boost::pfr::structure_to_tuple(std::declval<outputs_type&>()));
@@ -139,18 +181,20 @@ struct info_functions_2
 
   using control_output_values_type = typename SimpleApi2::get_display_type_list<control_output_tuple>::type;
 
-
-  static constexpr auto inlet_size = std::tuple_size_v<inputs_tuple>;
   static constexpr auto outlet_size = std::tuple_size_v<outputs_tuple>;
-
-  static constexpr auto audio_in_count = boost::mp11::mp_count_if<inputs_tuple, IsAudioInput>::value;
   static constexpr auto audio_out_count = boost::mp11::mp_count_if<outputs_tuple, IsAudioOutput>::value;
-  static constexpr auto value_in_count = boost::mp11::mp_count_if<inputs_tuple, IsAudioInput>::value;
-  static constexpr auto value_out_count = boost::mp11::mp_count_if<outputs_tuple, IsAudioOutput>::value;
-  static constexpr auto midi_in_count = boost::mp11::mp_count_if<inputs_tuple, IsMidiInput>::value;
+  static constexpr auto value_out_count = boost::mp11::mp_count_if<outputs_tuple, IsValueOutput>::value;
   static constexpr auto midi_out_count = boost::mp11::mp_count_if<outputs_tuple, IsMidiOutput>::value;
-  static constexpr auto control_in_count = boost::mp11::mp_count_if<inputs_tuple, IsControlInput>::value;
   static constexpr auto control_out_count = boost::mp11::mp_count_if<outputs_tuple, IsControlOutput>::value;
 };
+
+template<typename T>
+struct info_functions_2 : inlet_reflection<T>, outlet_reflection<T> { };
+
+
+template<typename T>
+concept HasControlInputs = info_functions_2<T>::control_in_count > 0;
+template<typename T>
+concept HasControlOutputs = info_functions_2<T>::control_out_count > 0;
 
 }

@@ -1,7 +1,12 @@
 #pragma once
-#include <Process/ProcessFlags.hpp>
+#include <Process/ProcessMetadata.hpp>
+#include <score/plugins/UuidKey.hpp>
 
-#define meta_attribute_uuid(name, value) static uuid_constexpr auto uuid() { return_uuid(value); }
+#if defined(_MSC_VER)
+#define meta_attribute_uuid(name, value) static inline auto uuid() { return_uuid(value); }
+#else
+#define meta_attribute_uuid(name, value) static constexpr auto uuid() { return_uuid(value); }
+#endif
 
 #define meta_attribute_name(name, value) static constexpr auto name() { return value; }
 #define meta_attribute_pretty_name(name, value) static constexpr auto prettyName() { return value; }
@@ -10,6 +15,12 @@
 #define meta_attribute_author(name, value) static constexpr auto author() { return value; }
 #define meta_attribute_kind(name, value) static constexpr auto kind() { return Process::ProcessCategory::value; }
 #define meta_attribute_description(name, value) static constexpr auto description() { return value; }
+#define meta_attribute_event(name, value) static constexpr auto is_event() { return value; }
+#define meta_attribute_use_channels(name, value) static constexpr auto use_channels() { \
+  static_assert(requires { &decltype(decltype(inputs)::value)::channels; }); \
+  return &decltype(inputs)::value; \
+}
+#define meta_attribute_want_channels(name, value) static constexpr auto want_channels() { return value; }
 
 #define meta_attribute(name, value) meta_attribute_ ## name(name, value)
 #define meta_control(type, ...) static constexpr type control() { return {__VA_ARGS__}; }

@@ -84,12 +84,12 @@ struct InitInlets
     }
   }
 
-  void operator()(ValueInput auto& in, ossia::value_inlet& port) const noexcept
+  void operator()(PortValueInput auto& in, ossia::value_inlet& port) const noexcept
   {
     inlets.push_back(std::addressof(port));
 
-    if constexpr(requires { in.is_event; }) {
-      port->is_event = in.is_event;
+    if constexpr(requires { in.is_event(); }) {
+      port->is_event = in.is_event();
     }
     in.port = std::addressof(*port);
   }
@@ -98,8 +98,17 @@ struct InitInlets
   {
     inlets.push_back(std::addressof(port));
 
-    if constexpr(requires { in.is_event; }) {
-      port->is_event = in.is_event;
+    if constexpr(requires { in.is_event(); }) {
+      port->is_event = in.is_event();
+    }
+  }
+
+  void operator()(SingleValueInput auto& in, ossia::value_inlet& port) const noexcept
+  {
+    inlets.push_back(std::addressof(port));
+
+    if constexpr(requires { in.is_event(); }) {
+      port->is_event = in.is_event();
     }
   }
 
@@ -140,7 +149,7 @@ struct InitOutlets
     }
   }
 
-  void operator()(ValueOutput auto& out, ossia::value_outlet& port) const noexcept
+  void operator()(PortValueOutput auto& out, ossia::value_outlet& port) const noexcept
   {
     outlets.push_back(std::addressof(port));
 
@@ -153,6 +162,16 @@ struct InitOutlets
   }
 
   void operator()(TimedValueOutput auto& out, ossia::value_outlet& port) const noexcept
+  {
+    outlets.push_back(std::addressof(port));
+
+    if constexpr(requires { out.type; }) {
+      if(!out.type.empty())
+        port->type = ossia::parse_dataspace(out.type);
+    }
+  }
+
+  void operator()(SingleValueOutput auto& out, ossia::value_outlet& port) const noexcept
   {
     outlets.push_back(std::addressof(port));
 
@@ -186,12 +205,25 @@ template<typename Exec_T>
 struct BeforeExecInlets
 {
   Exec_T& self;
+  const ossia::token_request& sub_tk;
+  ossia::exec_state_facade st;
 
-  void operator()(AudioInput auto& in, ossia::audio_inlet& port) const noexcept
+
+  void operator()(MultichannelAudioInput auto& in, ossia::audio_inlet& port) const noexcept
+  {
+    in.samples.offset = st.physical_start(sub_tk);
+    in.samples.duration = sub_tk.physical_write_duration(st.modelToSamples());
+  }
+
+  void operator()(AudioEffectInput auto& in, ossia::audio_inlet& port) const noexcept
   {
   }
 
-  void operator()(ValueInput auto& in, ossia::value_inlet& port) const noexcept
+  void operator()(PortAudioInput auto& in, ossia::audio_inlet& port) const noexcept
+  {
+  }
+
+  void operator()(PortValueInput auto& in, ossia::value_inlet& port) const noexcept
   {
   }
 
@@ -199,10 +231,29 @@ struct BeforeExecInlets
   {
     using value_type = std::remove_reference_t<decltype(in.values[0])>;
     in.values.clear();
-    in.values.reserve(port.data.get_data().size());
-    for(auto& [timestamp, value] : port.data.get_data())
+    if(const auto& inlet_values = port.data.get_data(); !inlet_values.empty())
     {
-      in.values[timestamp] = ossia::convert<value_type>(std::move(value));
+      const auto start = st.physical_start(sub_tk);
+      const auto dur = sub_tk.physical_write_duration(st.modelToSamples());
+      const auto end = start + dur;
+
+      for(auto& [value, timestamp] : inlet_values)
+      {
+        if(timestamp >= start && timestamp < end)
+        {
+          // From within the node, the time base is reset to every sub-tick's start
+          in.values[timestamp - start] = ossia::convert<value_type>(std::move(value));
+        }
+      }
+    }
+  }
+
+  void operator()(SingleValueInput auto& in, ossia::value_inlet& port) const noexcept
+  {
+    using value_type = std::remove_reference_t<decltype(in.value)>;
+    if(auto& vec = port.data.get_data(); !vec.empty())
+    {
+      in.value = ossia::convert<value_type>(std::move(vec.back().value));
     }
   }
 
@@ -219,16 +270,32 @@ template<typename Exec_T>
 struct BeforeExecOutlets
 {
   Exec_T& self;
+  const ossia::token_request& sub_tk;
+  ossia::exec_state_facade st;
 
-  void operator()(AudioOutput auto& out, ossia::audio_outlet& port) const noexcept
+  void operator()(MultichannelAudioOutput auto& out, ossia::audio_outlet& port) const noexcept
+  {
+    out.samples.offset = st.physical_start(sub_tk);
+    out.samples.duration = sub_tk.physical_write_duration(st.modelToSamples());
+  }
+
+  void operator()(AudioEffectOutput auto& out, ossia::audio_outlet& port) const noexcept
   {
   }
 
-  void operator()(ValueOutput auto& out, ossia::value_outlet& port) const noexcept
+  void operator()(PortAudioOutput auto& out, ossia::audio_outlet& port) const noexcept
+  {
+  }
+
+  void operator()(PortValueOutput auto& out, ossia::value_outlet& port) const noexcept
   {
   }
 
   void operator()(TimedValueOutput auto& out, ossia::value_outlet& port) const noexcept
+  {
+  }
+
+  void operator()(SingleValueOutput auto& out, ossia::value_outlet& port) const noexcept
   {
   }
 
@@ -245,16 +312,22 @@ template<typename Exec_T>
 struct AfterExecInlets
 {
   Exec_T& self;
+  const ossia::token_request& sub_tk;
+  ossia::exec_state_facade st;
 
   void operator()(AudioInput auto& in, ossia::audio_inlet& port) const noexcept
   {
   }
 
-  void operator()(ValueInput auto& in, ossia::value_inlet& port) const noexcept
+  void operator()(PortValueInput auto& in, ossia::value_inlet& port) const noexcept
   {
   }
 
   void operator()(TimedValueInput auto& in, ossia::value_inlet& port) const noexcept
+  {
+  }
+
+  void operator()(SingleValueInput auto& in, ossia::value_inlet& port) const noexcept
   {
   }
 
@@ -271,22 +344,30 @@ template<typename Exec_T>
 struct AfterExecOutlets
 {
   Exec_T& self;
+  const ossia::token_request& sub_tk;
+  ossia::exec_state_facade st;
 
   void operator()(AudioOutput auto& out, ossia::audio_outlet& port) const noexcept
   {
   }
 
-  void operator()(ValueOutput auto& out, ossia::value_outlet& port) const noexcept
+  void operator()(PortValueOutput auto& out, ossia::value_outlet& port) const noexcept
   {
   }
 
   void operator()(TimedValueOutput auto& out, ossia::value_outlet& port) const noexcept
   {
+    // We assume that the values won't be outside the bounds of the timestamp.
     for(auto& [timestamp, value] : out.values)
     {
       port->write_value(std::move(value), timestamp);
     }
     out.values.clear();
+  }
+
+  void operator()(SingleValueOutput auto& out, ossia::value_outlet& port) const noexcept
+  {
+    port->write_value(std::move(out.value), st.physical_start(sub_tk));
   }
 
   void operator()(MidiOutput auto& out, ossia::midi_outlet& port) const noexcept
@@ -298,16 +379,15 @@ struct AfterExecOutlets
   }
 };
 
-
 template <typename Node_T>
-class safe_node final : public ossia::nonowning_graph_node
+struct safe_node_inputs { };
+template <typename Node_T>
+requires DataflowNode<Node_T> && Inputs<Node_T> && HasControlInputs<Node_T>
+struct safe_node_inputs<Node_T>
 {
-public:
-  Node_T state;
-
   using info = info_functions_2<Node_T>;
+  // std::tuple<ossia::value_port, ossia::audio_port, ...>
   typename info::ossia_inputs_tuple input_ports;
-  typename info::ossia_outputs_tuple output_ports;
 
   // std::tuple<float, int...> : current running values of the controls
   using control_input_values_type = typename info::control_input_values_type;
@@ -318,9 +398,32 @@ public:
   control_input_changed_list control_input_changed;
 
   // holds the std::tuple<timed_vec<float>, ...>
-  using control_input_timed_t = typename ossia::apply_type<control_input_values_type, ossia::safe_nodes::timed_vec>::type;
+  using control_input_timed_t = typename ossia::apply_type<control_input_values_type, ossia::timed_vec>::type;
   control_input_timed_t control_input_timed;
 
+  // used to communicate control changes from / to the ui
+  ossia::spsc_queue<control_input_values_type> control_ins_queue;
+};
+
+template <typename Node_T>
+requires DataflowNode<Node_T> && Inputs<Node_T> && (!HasControlInputs<Node_T>)
+struct safe_node_inputs<Node_T>
+{
+  using info = info_functions_2<Node_T>;
+  // std::tuple<ossia::value_port, ossia::audio_port, ...>
+  typename info::ossia_inputs_tuple input_ports;
+};
+
+template <typename Node_T>
+struct safe_node_outputs { };
+template <typename Node_T>
+requires DataflowNode<Node_T> && Outputs<Node_T> && HasControlOutputs<Node_T>
+struct safe_node_outputs<Node_T>
+{
+  using info = info_functions_2<Node_T>;
+
+  // std::tuple<ossia::value_port, ossia::audio_port, ...>
+  typename info::ossia_outputs_tuple output_ports;
 
   // std::tuple<float, int...> : current running values of the controls
   using control_output_values_type = typename info::control_output_values_type;
@@ -331,13 +434,33 @@ public:
   control_output_changed_list control_output_changed;
 
   // holds the std::tuple<timed_vec<float>, ...>
-  using control_output_timed_t = typename ossia::apply_type<control_output_values_type, ossia::safe_nodes::timed_vec>::type;
+  using control_output_timed_t = typename ossia::apply_type<control_output_values_type, ossia::timed_vec>::type;
   control_output_timed_t control_output_timed;
 
-
   // used to communicate control changes from / to the ui
-  ossia::spsc_queue<control_input_values_type> control_ins_queue;
   ossia::spsc_queue<control_output_values_type> control_outs_queue;
+};
+
+template <typename Node_T>
+requires DataflowNode<Node_T> && Outputs<Node_T> && (!HasControlOutputs<Node_T>)
+struct safe_node_outputs<Node_T>
+{
+  using info = info_functions_2<Node_T>;
+
+  // std::tuple<ossia::value_port, ossia::audio_port, ...>
+  typename info::ossia_outputs_tuple output_ports;
+};
+
+template <DataflowNode Node_T>
+class safe_node final
+    : public ossia::nonowning_graph_node
+    , public safe_node_inputs<Node_T>
+    , public safe_node_outputs<Node_T>
+{
+public:
+  Node_T state;
+
+  using info = info_functions_2<Node_T>;
 
   safe_node(ossia::exec_state_facade st) noexcept
   {
@@ -514,13 +637,27 @@ public:
 
   void do_run(const ossia::token_request& sub_tk, ossia::exec_state_facade st)
   {
-    if constexpr(requires { state.run(sub_tk, st); })
-      state.run(sub_tk, st);
-    else if constexpr(requires { state.run(0); })
+    /// Prepare inlets and outlets ///
+    if constexpr(Inputs<Node_T>)
     {
-      const int64_t N = sub_tk.physical_write_duration(st.modelToSamples());
-      const int64_t first_pos = sub_tk.physical_start(st.modelToSamples());
+      ossia::for_each_in_tuples(
+          boost::pfr::detail::tie_as_tuple(state.inputs),
+          this->input_ports,
+          BeforeExecInlets<safe_node>{*this, sub_tk, st});
+    }
+    if constexpr(Outputs<Node_T>)
+    {
+      ossia::for_each_in_tuples(
+          boost::pfr::detail::tie_as_tuple(state.outputs),
+          this->output_ports,
+          BeforeExecOutlets<safe_node>{*this, sub_tk, st});
+    }
 
+    /// Prepare samples for "raw" audio channels.
+    const int64_t N = sub_tk.physical_write_duration(st.modelToSamples());
+    const int64_t first_pos = sub_tk.physical_start(st.modelToSamples());
+    if constexpr(SimpleAudioProcessor<Node_T>)
+    {
       // Ensure that we have enough space allocated in the output
       auto& p1 = std::get<0>(this->input_ports)->samples;
       auto& p2 = std::get<0>(this->output_ports)->samples;
@@ -529,10 +666,11 @@ public:
       const auto chans = p1.size();
       p2.resize(chans);
       state_p1.channels = chans;
-      state_p2.channels = chans;
+
       state_p1.samples = (const double**)alloca(sizeof(double*) * chans);
       state_p2.samples = (double**)alloca(sizeof(double*) * chans);
 
+      // Make sure that there is enough memory allocated, and fill our buffers.
       for (std::size_t i = 0; i < chans; i++)
       {
         auto& in = p1[i];
@@ -545,15 +683,44 @@ public:
           out.resize(in.size());
         state_p2.samples[i] = out.data() + first_pos;
       }
+    }
 
-      state.run(N);
+    // Execute depending on what we have
+    if constexpr(RunnableWithTokenRequest<Node_T>)
+    {
+      state(sub_tk, st);
+    }
+    else if constexpr(RunnableWithSampleCount<Node_T>)
+    {
+      state(N);
+    }
+    else if constexpr(RunnableWithoutArguments<Node_T>)
+    {
+      state();
+    }
 
+    /// Finish inlets and outlets ///
+    if constexpr(SimpleAudioProcessor<Node_T>)
+    {
+      auto& state_p1 = boost::pfr::get<0>(state.inputs);
+      auto& state_p2 = boost::pfr::get<0>(state.outputs);
       state_p1.samples = nullptr;
       state_p2.samples = nullptr;
     }
-    else if constexpr(requires { state.run(); })
+
+    if constexpr(requires { state.inputs; })
     {
-      state.run();
+      ossia::for_each_in_tuples(
+          boost::pfr::detail::tie_as_tuple(state.inputs),
+          this->input_ports,
+          AfterExecInlets<safe_node>{*this, sub_tk, st});
+    }
+    if constexpr(requires { state.outputs; })
+    {
+      ossia::for_each_in_tuples(
+          boost::pfr::detail::tie_as_tuple(state.outputs),
+          this->output_ports,
+          AfterExecOutlets<safe_node>{*this, sub_tk, st});
     }
   }
 
@@ -573,12 +740,12 @@ public:
 
   void clear_controls_in()
   {
-    ossia::for_each_in_tuple(control_input_timed, [] (auto& vec) { vec.clear(); });
+    ossia::for_each_in_tuple(this->control_input_timed, [] (auto& vec) { vec.clear(); });
   }
 
   void clear_controls_out()
   {
-    ossia::for_each_in_tuple(control_output_timed, [] (auto& vec) { vec.clear(); });
+    ossia::for_each_in_tuple(this->control_output_timed, [] (auto& vec) { vec.clear(); });
   }
 
   void
@@ -588,22 +755,6 @@ public:
     if constexpr(info::control_out_count > 0)
     {
       clear_controls_out();
-    }
-
-    /// Prepare inlets and outlets ///
-    if constexpr(requires { state.inputs; })
-    {
-      ossia::for_each_in_tuples(
-          boost::pfr::detail::tie_as_tuple(state.inputs),
-          this->input_ports,
-          BeforeExecInlets<safe_node>{*this});
-    }
-    if constexpr(requires { state.outputs; })
-    {
-      ossia::for_each_in_tuples(
-          boost::pfr::detail::tie_as_tuple(state.outputs),
-          this->output_ports,
-          BeforeExecOutlets<safe_node>{*this});
     }
 
     /// Execution ///
@@ -619,10 +770,10 @@ public:
 
       apply_all_impl(controls_indices{}, tk, st);
 
-      if (control_ins_queue.size_approx() < 1 && control_input_changed.any())
+      if (this->control_ins_queue.size_approx() < 1 && this->control_input_changed.any())
       {
-        control_ins_queue.try_enqueue(control_input);
-        control_input_changed.reset();
+        this->control_ins_queue.try_enqueue(this->control_input);
+        this->control_input_changed.reset();
       }
 
       clear_controls_in();
@@ -653,22 +804,6 @@ public:
         this->control_outs_queue.enqueue(this->control_output);
       }
     }
-
-    /// Finish inlets and outlets ///
-    if constexpr(requires { state.inputs; })
-    {
-      ossia::for_each_in_tuples(
-          boost::pfr::detail::tie_as_tuple(state.inputs),
-          this->input_ports,
-          AfterExecInlets<safe_node>{*this});
-    }
-    if constexpr(requires { state.outputs; })
-    {
-      ossia::for_each_in_tuples(
-          boost::pfr::detail::tie_as_tuple(state.outputs),
-          this->output_ports,
-          AfterExecOutlets<safe_node>{*this});
-    }
   }
 
   void all_notes_off() noexcept override
@@ -684,28 +819,4 @@ public:
     return "Control";
   }
 };
-
-/*
-struct value_adder
-{
-  ossia::value_port& port;
-  ossia::value v;
-  void operator()()
-  {
-    // timestamp should be > all others so that it is always active ?
-    port.write_value(std::move(v), 0);
-  }
-};
-
-template <typename T>
-struct control_updater
-{
-  T& control;
-  T v;
-  void operator()()
-  {
-    control = std::move(v);
-  }
-};
-*/
 }

@@ -22,10 +22,10 @@ namespace SimpleApi2
 struct is_control
 {
 };
-template <typename Info, typename = is_control>
+template <DataflowNode Info, typename = is_control>
 class ProcessModel;
 }
-template <typename Info>
+template <SimpleApi2::DataflowNode Info>
 struct Metadata<PrettyName_k, SimpleApi2::ProcessModel<Info>>
 {
   static Q_DECL_RELAXED_CONSTEXPR auto get()
@@ -33,7 +33,7 @@ struct Metadata<PrettyName_k, SimpleApi2::ProcessModel<Info>>
     return Info::prettyName();
   }
 };
-template <typename Info>
+template <SimpleApi2::DataflowNode Info>
 struct Metadata<Category_k, SimpleApi2::ProcessModel<Info>>
 {
   static Q_DECL_RELAXED_CONSTEXPR auto get()
@@ -41,7 +41,7 @@ struct Metadata<Category_k, SimpleApi2::ProcessModel<Info>>
     return Info::category();
   }
 };
-template <typename Info>
+template <SimpleApi2::DataflowNode Info>
 struct Metadata<Tags_k, SimpleApi2::ProcessModel<Info>>
 {
   static QStringList get()
@@ -54,7 +54,7 @@ struct Metadata<Tags_k, SimpleApi2::ProcessModel<Info>>
   }
 };
 
-template <typename Info>
+template <SimpleApi2::DataflowNode Info>
 struct Metadata<Process::Descriptor_k, SimpleApi2::ProcessModel<Info>>
 {
   using info = SimpleApi2::info_functions_2<Info>;
@@ -150,12 +150,6 @@ struct InletInitFunc
     p->setName(QString::fromUtf8(in.name()));
     ins.push_back(p);
   }
-  void operator()(const TimedValueInput auto& in)
-  {
-    auto p = new Process::ValueInlet(Id<Process::Port>(inlet++), &self);
-    p->setName(QString::fromUtf8(in.name()));
-    ins.push_back(p);
-  }
   void operator()(const MidiInput auto& in)
   {
     auto p = new Process::MidiInlet(Id<Process::Port>(inlet++), &self);
@@ -186,12 +180,6 @@ struct OutletInitFunc
     outs.push_back(p);
   }
   void operator()(const ValueOutput auto& out)
-  {
-    auto p = new Process::ValueOutlet(Id<Process::Port>(outlet++), &self);
-    p->setName(QString::fromUtf8(out.name()));
-    outs.push_back(p);
-  }
-  void operator()(const TimedValueOutput auto& out)
   {
     auto p = new Process::ValueOutlet(Id<Process::Port>(outlet++), &self);
     p->setName(QString::fromUtf8(out.name()));
@@ -276,7 +264,7 @@ struct PortLoadFunc
   }
 };
 */
-template <typename Info, typename>
+template <SimpleApi2::DataflowNode Info, typename>
 class ProcessModel final : public Process::ProcessModel
 {
   SCORE_SERIALIZE_FRIENDS

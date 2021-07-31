@@ -8,10 +8,24 @@ project(score_addon_simpleapi2 LANGUAGES CXX)
 
 add_library(
   score_addon_simpleapi2
-  Examples/EfficientTest.hpp
+  Examples/TrivialGenerator.hpp
+  Examples/TrivialFilter.hpp
+
+  Examples/SampleAccurateFilter.hpp
+  Examples/SampleAccurateGenerator.hpp
+
+  Examples/Empty.hpp
+
+  Examples/AudioEffect.hpp
+  Examples/AudioEffectWithSidechains.hpp
+
+  Examples/RawPorts.hpp
+
+  Examples/TextureGenerator.hpp
+
   Examples/Distortion.hpp
-  Examples/AudioEffectExample.hpp
   Examples/CCC.hpp
+
   SimpleApi2/Concepts.hpp
   SimpleApi2/Executor.hpp
   SimpleApi2/ExecutorNode.hpp

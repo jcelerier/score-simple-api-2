@@ -2,6 +2,7 @@
 
 #include <Control/Widgets.hpp>
 #include <cmath>
+#include <span>
 #include <ossia/dataflow/audio_port.hpp>
 #include <ossia/dataflow/safe_nodes/tick_policies.hpp>
 #include <Process/ProcessFlags.hpp>
@@ -17,62 +18,7 @@ namespace SimpleApi2
 #define uuid_constexpr constexpr
 #endif
 
-
 #define constant static inline constexpr auto
-
-struct Meta_base
-{
-  static const constexpr double recommended_height{};
-  static const constexpr Process::ProcessFlags flags
-      = Process::ProcessFlags(Process::ProcessFlags::SupportsLasting | Process::ProcessFlags::ControlSurface);
-};
-
-template<typename T>
-struct ControlMember {
-
-  using value_type = typename T::type;
-
-  const T spec;
-  value_type value;
-
-  operator value_type&() noexcept { return value; }
-  operator const value_type&() const noexcept { return value; }
-};
-
-struct control_input
-{
-
-};
-
-struct control_output
-{
-
-};
-
-struct audio_input
-{
-  const ossia::audio_port* port{};
-};
-struct audio_output
-{
-  ossia::audio_port* port{};
-};
-struct value_input
-{
-  const ossia::value_port* port{};
-};
-struct value_output
-{
-  ossia::value_port* port{};
-};
-struct midi_input
-{
-  const ossia::midi_port* port{};
-};
-struct midi_output
-{
-  ossia::midi_port* port{};
-};
 
 template<typename T>
 concept NamedPort = requires(T a) {
@@ -81,13 +27,13 @@ concept NamedPort = requires(T a) {
 
 template<typename T>
 concept MultichannelAudioInput = requires (T a) {
-  { a.samples.size() } -> std::convertible_to<std::size_t>;
+  { a.samples.channels() } -> std::convertible_to<std::size_t>;
   { a.samples[0].size() } -> std::convertible_to<std::size_t>;
   { a.samples[0][0] } -> std::same_as<const double&>;
 };
 template<typename T>
 concept MultichannelAudioOutput = requires (T a) {
-  { a.samples.size() } -> std::convertible_to<std::size_t>;
+  { a.samples.channels() } -> std::convertible_to<std::size_t>;
   { a.samples[0].size() } -> std::convertible_to<std::size_t>;
   { a.samples[0][0] } -> std::same_as<double&>;
 };
@@ -100,7 +46,7 @@ concept AudioEffectInput = requires (T a) {
 template<typename T>
 concept AudioEffectOutput = requires (T a) {
   { a.samples } -> std::convertible_to<double**>;
-  { a.channels } -> std::convertible_to<std::size_t>;
+  //{ a.channels } -> std::convertible_to<std::size_t>;
 };
 
 template<typename T>
@@ -119,35 +65,50 @@ template<typename T>
 concept AudioOutput = NamedPort<T> && (MultichannelAudioOutput<T> || AudioEffectOutput<T> || PortAudioOutput<T>);
 
 template<typename T>
-concept PortValueInput = requires (T a) {
+concept ControlInput = requires (T a) {
+  { a.control() };
+};
+template<typename T>
+concept ControlOutput = requires (T a) {
+  { a.display() };
+};
+
+template<typename T>
+concept PortValueInput = (!ControlInput<T>) && requires (T a) {
   { a.port } -> std::same_as<const ossia::value_port*>;
 };
 
 template<typename T>
-concept PortValueOutput = requires (T a) {
+concept PortValueOutput = (!ControlOutput<T>) && requires (T a) {
   { a.port } -> std::same_as<ossia::value_port*>;
 };
 
 template<typename T>
-concept ValueInput = NamedPort<T> && requires (T a) {
-  { a.port } -> std::same_as<const ossia::value_port*>;
-};
-
-template<typename T>
-concept ValueOutput = NamedPort<T> && requires (T a) {
-  { a.port } -> std::same_as<ossia::value_port*>;
-};
-
-
-template<typename T>
-concept TimedValueInput = NamedPort<T> && requires (T a) {
+concept TimedValueInput = (!ControlInput<T>) && requires (T a) {
   { a.values[0] } -> std::convertible_to<ossia::value>;
 };
 
 template<typename T>
-concept TimedValueOutput = NamedPort<T> && requires (T a) {
+concept TimedValueOutput = (!ControlOutput<T>) && requires (T a) {
   { a.values[0] } -> std::convertible_to<ossia::value>;
 };
+
+template<typename T>
+concept SingleValueInput = (!ControlInput<T>) && requires (T a) {
+  { a.value } -> std::convertible_to<ossia::value>;
+};
+
+template<typename T>
+concept SingleValueOutput = (!ControlOutput<T>) && requires (T a) {
+  { a.value } -> std::convertible_to<ossia::value>;
+};
+
+template<typename T>
+concept ValueInput = NamedPort<T> && (PortValueInput<T> || TimedValueInput<T> || SingleValueInput<T>);
+
+template<typename T>
+concept ValueOutput = NamedPort<T> && (PortValueOutput<T> || TimedValueOutput<T> || SingleValueOutput<T>);
+
 
 template<typename T>
 concept MidiInput = NamedPort<T> && requires (T a) {
@@ -159,18 +120,43 @@ concept MidiOutput = NamedPort<T> && requires (T a) {
 };
 
 template<typename T>
-concept ControlInput = requires (T a) {
-  { a.control() };
-};
-template<typename T>
-concept ControlOutput = requires (T a) {
-  { a.display() };
+concept TimedVec = requires (T a) {
+  { a.begin()->first } -> std::convertible_to<int64_t>;
+  { a.begin()->second };
 };
 
 template<typename T>
-concept TimedVec = requires (T a) {
-  { a.begin()->first } -> std::same_as<int64_t>;
-  { a.begin()->second };
+concept Inputs = std::is_aggregate_v<decltype(T::inputs)> && !std::is_empty_v<decltype(T::inputs)>;
+template<typename T>
+concept Outputs = std::is_aggregate_v<decltype(T::outputs)> && !std::is_empty_v<decltype(T::outputs)>;
+
+template<typename T>
+concept RunnableWithoutArguments = requires(T t)
+{
+  { t() };
+};
+template<typename T>
+concept RunnableWithSampleCount = requires(T t)
+{
+  { t(std::size_t{}) };
+};
+template<typename T>
+concept RunnableWithTokenRequest = requires(T t)
+{
+  { t(ossia::token_request{}, ossia::exec_state_facade{}) };
+};
+
+template<typename T>
+concept Runnable = RunnableWithSampleCount<T> || RunnableWithTokenRequest<T> || RunnableWithoutArguments<T>;
+template<typename T>
+concept SimpleAudioProcessor = AudioEffectInput<decltype(T::inputs.audio)> && AudioEffectOutput<decltype(T::outputs.audio)>;
+
+template<typename T>
+concept DataflowNode = Runnable<T> && requires(T t)
+{
+  { t.prettyName() };
+  { t.objectKey() };
+  { t.uuid() };
 };
 
 
@@ -197,8 +183,20 @@ using IsControlOutput = typename std::integral_constant< bool, ControlOutput<T>>
 
 struct multichannel_audio_view {
   ossia::audio_vector* buffer{};
-  const ossia::audio_channel& operator[](std::size_t i) const noexcept { return (*buffer)[i]; };
-  std::size_t size() const noexcept { return buffer->size(); }
+  int64_t offset{};
+  int64_t duration{};
+
+  std::span<const double> operator[](std::size_t i) const noexcept
+  {
+    auto& chan = (*buffer)[i];
+    int64_t min_dur = std::min(int64_t(chan.size()) - offset, duration);
+    if(min_dur < 0)
+      min_dur = 0;
+
+    return std::span<const double>{chan.data() + offset, std::size_t(min_dur)};
+  }
+
+  std::size_t channels() const noexcept { return buffer->size(); }
   void resize(std::size_t i) const noexcept { return buffer->resize(i); }
   void reserve(std::size_t channels, std::size_t bufferSize)
   {
@@ -209,13 +207,32 @@ struct multichannel_audio_view {
 
 struct multichannel_audio {
   ossia::audio_vector* buffer{};
-  ossia::audio_channel& operator[](int i) const noexcept { return (*buffer)[i];};
-  std::size_t size() const noexcept { return buffer->size(); }
-  void resize(std::size_t i) const noexcept { return buffer->resize(i); }
+  int64_t offset{};
+  int64_t duration{};
+
+  std::span<double> operator[](std::size_t i) const noexcept
+  {
+    auto& chan = (*buffer)[i];
+    int64_t min_dur = std::min(int64_t(chan.size()) - offset, duration);
+    if(min_dur < 0)
+      min_dur = 0;
+
+    return std::span<double>{chan.data() + offset, std::size_t(min_dur)};
+  }
+
+  std::size_t channels() const noexcept { return buffer->size(); }
+  void resize(std::size_t channels, std::size_t samples_to_write) const noexcept
+  {
+    buffer->resize(channels);
+    for(auto& c : *buffer)
+      c.resize(offset + samples_to_write);
+  }
+
   void reserve(std::size_t channels, std::size_t bufferSize)
   {
-    resize(channels);
-    for(auto& vec : *buffer) vec.reserve(bufferSize);
+    buffer->resize(channels);
+    for(auto& c : *buffer)
+      c.reserve(bufferSize);
   }
 };
 }

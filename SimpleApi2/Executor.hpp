@@ -271,7 +271,7 @@ void setup_node(
   }
 }
 
-template <typename Info>
+template <DataflowNode Info>
 class Executor final
     : public Execution::
           ProcessComponent_T<ProcessModel<Info>, ossia::node_process>

@@ -4,7 +4,9 @@
 
 namespace SimpleApi2
 {
-
+/**
+ * This example exhibits a simple multi-channel effect processor.
+ */
 struct AudioEffectExample
 {
   meta_attribute(pretty_name, "My example effect");
@@ -15,6 +17,21 @@ struct AudioEffectExample
   meta_attribute(description, "<DESCRIPTION>");
   meta_attribute(uuid, "c8b57fff-c34c-4772-8f72-fe5267527ece");
 
+  /**
+   * Here we have a special case, which happens to be the most common case in audio
+   * development. If our inputs start with an audio port of the shape
+   *
+   *     const double** samples;
+   *     std::size_t channels;
+   *
+   * and our outputs starts with an audio port of shape
+   *
+   *     double** samples;
+   *
+   * then it is assumed that we are writing an effect processor, where the outputs
+   * should match the inputs. There will be as many output channels as input channels,
+   * with enough samples allocated to write from 0 to N.
+   */
   struct {
     struct {
       meta_attribute(name, "In");
@@ -33,11 +50,10 @@ struct AudioEffectExample
     struct {
       meta_attribute(name, "Out");
       double** samples{};
-      std::size_t channels{};
     } audio;
   } outputs;
 
-  void run(std::size_t N)
+  void operator()(std::size_t N)
   {
     auto& gain = inputs.gain;
     auto& p1 = inputs.audio;

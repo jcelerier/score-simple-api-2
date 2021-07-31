@@ -15,31 +15,22 @@ struct AudioSidechainExample
   meta_attribute(kind, AudioEffect);
   meta_attribute(author, "<AUTHOR>");
   meta_attribute(description, "<DESCRIPTION>");
-  meta_attribute(uuid, "b9f63462-e41e-4a5a-9f41-f322a4699862");
+  meta_attribute(uuid, "6fcfa5ad-ac5e-4851-a7bc-72f6fbf57dcd");
 
-  /**
-   * Here we have a special case, which happens to be the most common case in audio
-   * development. If our inputs start with an audio port of the shape
-   *
-   *     const double** samples;
-   *     std::size_t channels;
-   *
-   * and our outputs starts with an audio port of shape
-   *
-   *     double** samples;
-   *
-   * then it is assumed that we are writing an effect processor, where the outputs
-   * should match the inputs. There will be as many output channels as input channels,
-   * with enough samples allocated to write from 0 to N.
-   */
   struct {
+    // Note: one could of course define helper types.
+    // The point of these examples is to show that the helper types are strictly
+    // syntax sugar ; what matters is the shape of our inputs / outputs.
     struct {
       meta_attribute(name, "In");
+
       const double** samples{};
       std::size_t channels{};
     } audio;
+
     struct {
       meta_attribute(name, "Sidechain");
+
       const double** samples{};
       std::size_t channels{};
     } sidechain;
@@ -56,7 +47,7 @@ struct AudioSidechainExample
       meta_attribute(name, "Out");
 
       // Here we say: use the same number of channels than the input "audio".
-      meta_attribute(use_channels, audio);
+      meta_attribute(mimic_channels, audio);
 
       double** samples{};
     } audio;
@@ -76,7 +67,9 @@ struct AudioSidechainExample
   {
     auto& gain = inputs.gain;
     auto& p1 = inputs.audio;
+    auto& sc = inputs.sidechain;
     auto& p2 = outputs.audio;
+    auto& mono = outputs.side_out.samples[0];
 
     const auto chans = p1.channels;
 
@@ -86,9 +79,24 @@ struct AudioSidechainExample
       auto& in = p1.samples[i];
       auto& out = p2.samples[i];
 
-      for (std::size_t j = 0; j < N; j++)
+      // If there's enough channels in the sidechain, use it
+      if(sc.channels > i)
       {
-        out[j] = in[j] * gain.value;
+        auto& sidechain = sc.samples[i];
+        for (std::size_t j = 0; j < N; j++)
+        {
+          out[j] = std::abs(sidechain[j] * gain.value) > 0.5 ? in[j] * gain.value : 0.0;
+          mono[j] += out[j];
+        }
+      }
+      else
+      {
+        // Don't use the sidechain
+        for (std::size_t j = 0; j < N; j++)
+        {
+          out[j] = in[j] * gain.value;
+          mono[j] += out[j];
+        }
       }
     }
   }

@@ -52,40 +52,26 @@ struct ExecutorFactory final
  //using LayerFactory = SimpleApi2::LayerFactory<Node>;
 
 
-template <typename... Args>
-struct create_types
-{
-  template <template <typename> typename GenericFactory>
-  auto perform()
-  {
-    std::vector<std::unique_ptr<score::InterfaceBase>> vec;
-    ossia::for_each_tagged(ossia::tl<Args...>{}, [&](auto t) {
-                             using type = typename decltype(t)::type;
-                             vec.emplace_back(std::make_unique<GenericFactory<type>>());
-                           });
-    return vec;
-  }
-};
 template <SimpleApi2::DataflowNode... Nodes>
 std::vector<std::unique_ptr<score::InterfaceBase>> instantiate_fx(
     const score::ApplicationContext& ctx,
     const score::InterfaceKey& key)
 {
+  std::vector<std::unique_ptr<score::InterfaceBase>> v;
   if (key == Execution::ProcessComponentFactory::static_interfaceKey())
   {
-    return create_types<Nodes...>{}
-        .template perform<SimpleApi2::ExecutorFactory>();
+    //static_assert((requires { std::declval<Nodes>().run({}, {}); } && ...));
+    (v.push_back(std::make_unique<SimpleApi2::ExecutorFactory<Nodes>>()), ...);
   }
   else if (key == Process::ProcessModelFactory::static_interfaceKey())
   {
-    return create_types<Nodes...>{}
-        .template perform<SimpleApi2::ProcessFactory>();
+    (v.push_back(std::make_unique<SimpleApi2::ProcessFactory<Nodes>>()), ...);
   }
   //else if (key == Process::LayerFactory::static_interfaceKey())
   //{
-  //  return create_types<Nodes...>{}.template perform<SimpleApi2::LayerFactory>();
+  //  (v.push_back(make_interface<SimpleApi2::LayerFactory<Nodes>>()), ...);
   //}
-  return {};
+  return v;
 }
 }
 
@@ -97,13 +83,19 @@ score_addon_simpleapi2::factories(
     const score::ApplicationContext& ctx,
     const score::InterfaceKey& key) const
 {
+  using namespace SimpleApi2;
   return SimpleApi2::instantiate_fx<
       SimpleApi2::Distortion
     , SimpleApi2::CCC
     , SimpleApi2::RawPortsExample
     , SimpleApi2::EmptyExample
-    , SimpleApi2::SampleAccurateGeneratorExample, SimpleApi2::SampleAccurateFilterExample, SimpleApi2::TrivialGeneratorExample, SimpleApi2::TrivialFilterExample
-    , SimpleApi2::AudioEffectExample>(ctx, key);
+
+    , SimpleApi2::SampleAccurateGeneratorExample,
+      SimpleApi2::SampleAccurateFilterExample,
+      SimpleApi2::TrivialGeneratorExample,
+      SimpleApi2::TrivialFilterExample,
+      SimpleApi2::AudioEffectExample,
+      SimpleApi2::AudioSidechainExample>(ctx, key);
 }
 
 std::vector<score::PluginKey> score_addon_simpleapi2::required() const

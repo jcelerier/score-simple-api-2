@@ -53,6 +53,7 @@ struct AudioEffectExample
     } audio;
   } outputs;
 
+  /** Most basic effect: multiply N samples of inputs by a gain into equivalent outputs **/
   void operator()(std::size_t N)
   {
     auto& gain = inputs.gain;

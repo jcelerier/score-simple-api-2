@@ -16,7 +16,7 @@
 #define meta_attribute_kind(name, value) static constexpr auto kind() { return Process::ProcessCategory::value; }
 #define meta_attribute_description(name, value) static constexpr auto description() { return value; }
 #define meta_attribute_event(name, value) static constexpr auto is_event() { return value; }
-#define meta_attribute_use_channels(name, value) static constexpr auto use_channels() { \
+#define meta_attribute_mimic_channels(name, value) static constexpr auto mimic_channels() { \
   static_assert(requires { &decltype(decltype(inputs)::value)::channels; }); \
   return &decltype(inputs)::value; \
 }

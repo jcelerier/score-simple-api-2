@@ -54,6 +54,8 @@ struct Distortion
     // Reserve memory for two channels, for the input and the output.
     inputs.audio.samples.reserve(2, st.bufferSize());
     outputs.audio.samples.reserve(2, st.bufferSize());
+
+    // Also reserve some memory in our temporary mono buffer.
     temp_buffer.reserve(st.bufferSize());
 
     // Note that channels in score are dynamic ; your process should not expect
@@ -119,7 +121,13 @@ struct Distortion
     for(int64_t j = 0; j < samples_to_write; j++)
     {
       using namespace std;
+      // Tanh
       out_l[j] = tanh(temp_buffer[j] * gain.value);
+
+      // Bitcrush
+      out_l[j] = int(out_l[j] * 4.) / 4.;
+
+      // Invert phase on the right side
       out_r[j] = 1. - out_l[j];
     }
   }

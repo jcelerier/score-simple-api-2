@@ -217,6 +217,17 @@ struct BeforeExecInlets
 
   void operator()(AudioEffectInput auto& in, ossia::audio_inlet& port) const noexcept
   {
+    in.channels = port->samples.size();
+    auto first_pos = st.physical_start(sub_tk);
+    auto N = sub_tk.physical_write_duration(st.modelToSamples());
+
+    // Allocate enough memory in our input buffers
+    for (std::size_t i = 0; i < in.channels; i++)
+    {
+      auto& in = port->samples[i];
+      if(int64_t(in.size()) - first_pos < N)
+        in.resize(N + first_pos);
+    }
   }
 
   void operator()(PortAudioInput auto& in, ossia::audio_inlet& port) const noexcept
@@ -635,6 +646,23 @@ public:
     }
   }
 
+  constexpr std::size_t audio_output_channels(AudioEffectOutput auto& field)
+  {
+    if constexpr(requires { field.want_channels(); }) {
+      // Fixed number of channels
+      return field.want_channels();
+    }
+    else if constexpr(requires { field.mimic_channels(); }) {
+      // Dynamic: uses the same amount of channels than an input
+      return (state.inputs.*(field.mimic_channels())).channels;
+    } else if constexpr(AudioEffectInput<decltype(boost::pfr::get<0>(state.inputs))>) {
+      return boost::pfr::get<0>(state.inputs).channels;
+    } else {
+      static_assert(field.want_channels() or field.mimic_channels(), "aren't implemented");
+      return 0;
+    }
+  }
+
   void do_run(const ossia::token_request& sub_tk, ossia::exec_state_facade st)
   {
     /// Prepare inlets and outlets ///
@@ -656,32 +684,88 @@ public:
     /// Prepare samples for "raw" audio channels.
     const int64_t N = sub_tk.physical_write_duration(st.modelToSamples());
     const int64_t first_pos = sub_tk.physical_start(st.modelToSamples());
-    if constexpr(SimpleAudioProcessor<Node_T>)
+
     {
-      // Ensure that we have enough space allocated in the output
-      auto& p1 = std::get<0>(this->input_ports)->samples;
-      auto& p2 = std::get<0>(this->output_ports)->samples;
-      auto& state_p1 = boost::pfr::get<0>(state.inputs);
-      auto& state_p2 = boost::pfr::get<0>(state.outputs);
-      const auto chans = p1.size();
-      p2.resize(chans);
-      state_p1.channels = chans;
-
-      state_p1.samples = (const double**)alloca(sizeof(double*) * chans);
-      state_p2.samples = (double**)alloca(sizeof(double*) * chans);
-
-      // Make sure that there is enough memory allocated, and fill our buffers.
-      for (std::size_t i = 0; i < chans; i++)
+      // 1. Count inputs
+      if constexpr(Inputs<Node_T>)
       {
-        auto& in = p1[i];
-        if(int64_t(in.size()) - first_pos < N)
-          in.resize(N + first_pos);
-        state_p1.samples[i] = in.data() + first_pos;
+        int total_input_channels{};
+        const double** input_channel_data{};
 
-        auto& out = p2[i];
-        if(out.size() < in.size())
-          out.resize(in.size());
-        state_p2.samples[i] = out.data() + first_pos;
+        // First loop to count all the inputs channels used in order to do an alloca
+        boost::pfr::for_each_field_ref(
+            this->state.inputs,
+            [&] <typename T> (T&& field) {
+              if constexpr(AudioEffectInput<T>) {
+                total_input_channels += field.channels;
+              }
+            });
+
+        // Do the alloca here (it has to be in the function that will call "state")
+        input_channel_data = (const double**)alloca(sizeof(double*) * total_input_channels);
+
+        const double** channel_data_ref = input_channel_data;
+
+        // Now assign the pointers in order by incrementing by the number of channels.
+        // Memory is already allocated by BeforeExecInlets.
+        ossia::for_each_in_tuples(
+            boost::pfr::detail::tie_as_tuple(state.inputs),
+            this->input_ports,
+            [&] <typename T> (T&& field, auto& port) {
+              if constexpr(AudioEffectInput<T>) {
+                field.samples = channel_data_ref;
+                for(std::size_t i = 0; i < field.channels; ++i)
+                {
+                  auto& ossia_channel = port.data.samples[i];
+                  const int64_t available_samples = ossia_channel.size();
+                  if(available_samples - first_pos < N)
+                    ossia_channel.resize(N + first_pos);
+                  field.samples[i] = ossia_channel.data() + first_pos;
+                }
+                channel_data_ref += field.channels;
+              }
+            });
+      }
+
+      if constexpr(Outputs<Node_T>)
+      {
+        int total_output_channels = 0;
+        double** output_channel_data{};
+        boost::pfr::for_each_field_ref(
+            this->state.outputs,
+            [&] <typename T> (T&& field) {
+              if constexpr(AudioEffectOutput<T>) {
+                total_output_channels += audio_output_channels(field);
+              }
+            });
+
+        // Do the alloca here (it has to be in the function that will call "state")
+        output_channel_data = (double**)alloca(sizeof(double*) * total_output_channels);
+
+        double** channel_data_ref = output_channel_data;
+
+        // Now assign the pointers in order by incrementing by the number of channels.
+        // Memory is already allocated by BeforeExecInlets.
+        ossia::for_each_in_tuples(
+            boost::pfr::detail::tie_as_tuple(state.outputs),
+            this->output_ports,
+            [&] <typename T> (T&& field, auto& port) {
+              if constexpr(AudioEffectOutput<T>) {
+                field.samples = channel_data_ref;
+
+                const std::size_t channels = audio_output_channels(field);
+                port.data.samples.resize(channels);
+                for(std::size_t i = 0; i < channels; ++i)
+                {
+                  auto& ossia_channel = port.data.samples[i];
+                  const int64_t available_samples = ossia_channel.size();
+                  if(available_samples - first_pos < N)
+                    ossia_channel.resize(N + first_pos);
+                  field.samples[i] = ossia_channel.data() + first_pos;
+                }
+                channel_data_ref += channels;
+              }
+            });
       }
     }
 
@@ -700,14 +784,6 @@ public:
     }
 
     /// Finish inlets and outlets ///
-    if constexpr(SimpleAudioProcessor<Node_T>)
-    {
-      auto& state_p1 = boost::pfr::get<0>(state.inputs);
-      auto& state_p2 = boost::pfr::get<0>(state.outputs);
-      state_p1.samples = nullptr;
-      state_p2.samples = nullptr;
-    }
-
     if constexpr(requires { state.inputs; })
     {
       ossia::for_each_in_tuples(

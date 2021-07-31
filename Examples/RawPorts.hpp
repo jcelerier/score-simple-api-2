@@ -82,8 +82,7 @@ struct RawPortsExample
     // outputs.value.port->get_data() = inputs.value.port->get_data();
     // outputs.midi.port->messages = inputs.midi.port->messages;
 
-    // Valid implementation:
-
+    // The valid implementation is a bit involved - if you use the simpler types this is done behind the scene.
     const int64_t start = t.physical_start(st.modelToSamples());
     const int64_t N = t.physical_write_duration(st.modelToSamples());
 

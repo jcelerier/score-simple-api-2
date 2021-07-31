@@ -5,6 +5,10 @@
 
 namespace SimpleApi2
 {
+/**
+ * As an example, here is a port of the CCC chaotic engine part of
+ * Litter Power, the traditional set of Max/MSP externals by Peter Castine.
+ */
 struct CCC
 {
   meta_attribute(pretty_name, "CCC");
@@ -16,6 +20,10 @@ struct CCC
   meta_attribute(uuid, "9db0af3c-8573-4541-95d4-cf7902cdbedb");
 
   struct {
+    /**
+     * Here we use a bang input like the original Max external ;
+     * notice that an ossia::impulse value as-is wouldn't make a lot of sense.
+      **/
     struct {
       meta_control(Control::ImpulseButton, "Bang");
 
@@ -24,14 +32,17 @@ struct CCC
   } inputs;
 
   struct {
+    /** One float is output per bang **/
     struct {
       meta_attribute(name, "Out");
       ossia::timed_vec<float> values;
     } out;
   } outputs;
 
+  /** We need to keep some state around **/
   double current_value{0.1234};
 
+  /** No particular argument is needed here, we can just process the whole input buffer **/
   void operator()()
   {
     for(auto& [timestamp, value] : inputs.bang.values)

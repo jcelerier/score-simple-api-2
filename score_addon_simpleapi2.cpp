@@ -17,6 +17,7 @@
 
 #include <Examples/Distortion.hpp>
 #include <Examples/CCC.hpp>
+#include <Examples/Synth.hpp>
 
 #include <boost/pfr.hpp>
 #include <Process/ProcessMetadata.hpp>
@@ -88,7 +89,8 @@ score_addon_simpleapi2::factories(
       SimpleApi2::Distortion
     , SimpleApi2::CCC
     , SimpleApi2::RawPortsExample
-    , SimpleApi2::EmptyExample
+    , SimpleApi2::EmptyExample,
+      SimpleApi2::Synth
 
     , SimpleApi2::SampleAccurateGeneratorExample,
       SimpleApi2::SampleAccurateFilterExample,

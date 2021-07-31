@@ -23,5 +23,5 @@
 #define meta_attribute_want_channels(name, value) static constexpr auto want_channels() { return value; }
 
 #define meta_attribute(name, value) meta_attribute_ ## name(name, value)
-#define meta_control(type, ...) static constexpr type control() { return {__VA_ARGS__}; }
-#define meta_display(type, ...) static constexpr type display() { return {__VA_ARGS__}; }
+#define meta_control(type, ...) static constexpr auto control() { return type{__VA_ARGS__}; }
+#define meta_display(type, ...) static constexpr auto display() { return type{__VA_ARGS__}; }

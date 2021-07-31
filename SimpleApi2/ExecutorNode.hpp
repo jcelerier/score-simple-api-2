@@ -112,11 +112,15 @@ struct InitInlets
     }
   }
 
-  void operator()(MidiInput auto& in, ossia::midi_inlet& port) const noexcept
+  void operator()(PortMidiInput auto& in, ossia::midi_inlet& port) const noexcept
   {
     inlets.push_back(std::addressof(port));
 
     in.port = std::addressof(*port);
+  }
+  void operator()(MessagesMidiInput auto& in, ossia::midi_inlet& port) const noexcept
+  {
+    inlets.push_back(std::addressof(port));
   }
 
   void operator()(ControlInput auto& ctrl, ossia::value_inlet& port) const noexcept
@@ -268,8 +272,28 @@ struct BeforeExecInlets
     }
   }
 
-  void operator()(MidiInput auto& in, ossia::midi_inlet& port) const noexcept
+  void operator()(PortMidiInput auto& in, ossia::midi_inlet& port) const noexcept
   {
+  }
+  void operator()(MessagesMidiInput auto& in, ossia::midi_inlet& port) const noexcept
+  {
+    in.messages.clear();
+    if(auto& inlet_values = port->messages; !inlet_values.empty())
+    {
+      const auto start = st.physical_start(sub_tk);
+      const auto dur = sub_tk.physical_write_duration(st.modelToSamples());
+      const auto end = start + dur;
+
+      for(libremidi::message& msg : inlet_values)
+      {
+        if(msg.timestamp >= start && msg.timestamp < end)
+        {
+          // From within the node, the time base is reset to every sub-tick's start
+          in.messages.push_back(std::move(msg));
+          in.messages.back().timestamp -= start;
+        }
+      }
+    }
   }
 
   void operator()(ControlInput auto& ctrl, ossia::value_inlet& port) const noexcept
@@ -381,8 +405,14 @@ struct AfterExecOutlets
     port->write_value(std::move(out.value), st.physical_start(sub_tk));
   }
 
-  void operator()(MidiOutput auto& out, ossia::midi_outlet& port) const noexcept
+
+  void operator()(PortMidiOutput auto& out, ossia::midi_outlet& port) const noexcept
   {
+  }
+  void operator()(MessagesMidiOutput auto& out, ossia::midi_outlet& port) const noexcept
+  {
+    port->messages.insert(port->messages.end(), out.messages.begin(), out.messages.end());
+    out.messages.clear();
   }
 
   void operator()(ControlOutput auto& ctrl, ossia::value_outlet& port) const noexcept

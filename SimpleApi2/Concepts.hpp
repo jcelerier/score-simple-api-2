@@ -111,13 +111,29 @@ concept ValueOutput = NamedPort<T> && (PortValueOutput<T> || TimedValueOutput<T>
 
 
 template<typename T>
-concept MidiInput = NamedPort<T> && requires (T a) {
+concept PortMidiInput = requires (T a) {
   { a.port } -> std::same_as<const ossia::midi_port*>;
 };
+
 template<typename T>
-concept MidiOutput = NamedPort<T> && requires (T a) {
+concept PortMidiOutput = requires (T a) {
   { a.port } -> std::same_as<ossia::midi_port*>;
 };
+
+template<typename T>
+concept MessagesMidiInput = requires (T a) {
+  { a.messages[0] } -> std::convertible_to<const libremidi::message&>;
+};
+
+template<typename T>
+concept MessagesMidiOutput = requires (T a) {
+  { a.messages[0] } -> std::convertible_to<libremidi::message&>;
+};
+
+template<typename T>
+concept MidiInput = NamedPort<T> && (PortMidiInput<T> || MessagesMidiInput<T>);
+template<typename T>
+concept MidiOutput = NamedPort<T> &&  (PortMidiOutput<T> || MessagesMidiOutput<T>);
 
 template<typename T>
 concept TimedVec = requires (T a) {

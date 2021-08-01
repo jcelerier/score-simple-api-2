@@ -1,6 +1,8 @@
 #pragma once
 #include <Process/ProcessMetadata.hpp>
 #include <score/plugins/UuidKey.hpp>
+#include <ossia/detail/timed_vec.hpp>
+#include <ossia/dataflow/exec_state_facade.hpp>
 
 #if defined(_MSC_VER)
 #define meta_attribute_uuid(name, value) static inline auto uuid() { return_uuid(value); }

@@ -1,6 +1,6 @@
 #pragma once
-#include <SimpleApi2/Concepts.hpp>
-#include <SimpleApi2/Metadatas.hpp>
+#include <oscr/Concepts.hpp>
+#include <oscr/Metadatas.hpp>
 #include <ossia/dataflow/fx_node.hpp>
 #include <ossia/dataflow/graph_node.hpp>
 #include <ossia/dataflow/node_process.hpp>
@@ -33,7 +33,7 @@ void for_each_in_tuples(T1<T1s...>&& t1, T2<T2s...>& t2, F&& func)
 }
 
 }
-namespace SimpleApi2
+namespace oscr
 {
 
 template <typename T, typename = void>
@@ -123,6 +123,11 @@ struct InitInlets
     inlets.push_back(std::addressof(port));
   }
 
+  void operator()(TextureInput auto& in, ossia::texture_inlet& port) const noexcept
+  {
+    inlets.push_back(std::addressof(port));
+  }
+
   void operator()(ControlInput auto& ctrl, ossia::value_inlet& port) const noexcept
   {
     inlets.push_back(std::addressof(port));
@@ -190,6 +195,11 @@ struct InitOutlets
     outlets.push_back(std::addressof(port));
 
     out.port = std::addressof(*port);
+  }
+
+  void operator()(TextureOutput auto& out, ossia::texture_outlet& port) const noexcept
+  {
+    outlets.push_back(std::addressof(port));
   }
 
   void operator()(ControlOutput auto& ctrl, ossia::value_outlet& port) const noexcept
@@ -296,6 +306,10 @@ struct BeforeExecInlets
     }
   }
 
+  void operator()(TextureInput auto& in, ossia::texture_inlet& port) const noexcept
+  {
+  }
+
   void operator()(ControlInput auto& ctrl, ossia::value_inlet& port) const noexcept
   {
   }
@@ -338,6 +352,10 @@ struct BeforeExecOutlets
   {
   }
 
+  void operator()(TextureOutput auto& out, ossia::texture_outlet& port) const noexcept
+  {
+  }
+
   void operator()(ControlOutput auto& ctrl, ossia::value_outlet& port) const noexcept
   {
   }
@@ -367,6 +385,10 @@ struct AfterExecInlets
   }
 
   void operator()(MidiInput auto& in, ossia::midi_inlet& port) const noexcept
+  {
+  }
+
+  void operator()(TextureInput auto& in, ossia::texture_inlet& port) const noexcept
   {
   }
 
@@ -415,6 +437,10 @@ struct AfterExecOutlets
     out.messages.clear();
   }
 
+  void operator()(TextureOutput auto& out, ossia::texture_outlet& port) const noexcept
+  {
+  }
+
   void operator()(ControlOutput auto& ctrl, ossia::value_outlet& port) const noexcept
   {
   }
@@ -426,16 +452,16 @@ template <typename Node_T>
 requires DataflowNode<Node_T> && Inputs<Node_T> && HasControlInputs<Node_T>
 struct safe_node_inputs<Node_T>
 {
-  using info = info_functions_2<Node_T>;
+  using inlets_refl = inlet_reflection<Node_T>;
   // std::tuple<ossia::value_port, ossia::audio_port, ...>
-  typename info::ossia_inputs_tuple input_ports;
+  typename inlets_refl::ossia_inputs_tuple input_ports;
 
   // std::tuple<float, int...> : current running values of the controls
-  using control_input_values_type = typename info::control_input_values_type;
+  using control_input_values_type = typename inlets_refl::control_input_values_type;
   control_input_values_type control_input;
 
   // bitset : 1 if the control has changed since the last tick, 0 else
-  using control_input_changed_list = std::bitset<info::control_in_count>;
+  using control_input_changed_list = std::bitset<inlets_refl::control_in_count>;
   control_input_changed_list control_input_changed;
 
   // holds the std::tuple<timed_vec<float>, ...>
@@ -450,9 +476,9 @@ template <typename Node_T>
 requires DataflowNode<Node_T> && Inputs<Node_T> && (!HasControlInputs<Node_T>)
 struct safe_node_inputs<Node_T>
 {
-  using info = info_functions_2<Node_T>;
+  using inlets_refl = inlet_reflection<Node_T>;
   // std::tuple<ossia::value_port, ossia::audio_port, ...>
-  typename info::ossia_inputs_tuple input_ports;
+  typename inlets_refl::ossia_inputs_tuple input_ports;
 };
 
 template <typename Node_T>
@@ -461,17 +487,17 @@ template <typename Node_T>
 requires DataflowNode<Node_T> && Outputs<Node_T> && HasControlOutputs<Node_T>
 struct safe_node_outputs<Node_T>
 {
-  using info = info_functions_2<Node_T>;
+  using outlets_refl = outlet_reflection<Node_T>;
 
   // std::tuple<ossia::value_port, ossia::audio_port, ...>
-  typename info::ossia_outputs_tuple output_ports;
+  typename outlets_refl::ossia_outputs_tuple output_ports;
 
   // std::tuple<float, int...> : current running values of the controls
-  using control_output_values_type = typename info::control_output_values_type;
+  using control_output_values_type = typename outlets_refl::control_output_values_type;
   control_output_values_type control_output;
 
   // bitset : 1 if the control has changed since the last tick, 0 else
-  using control_output_changed_list = std::bitset<info::control_in_count>;
+  using control_output_changed_list = std::bitset<outlets_refl::control_in_count>;
   control_output_changed_list control_output_changed;
 
   // holds the std::tuple<timed_vec<float>, ...>
@@ -486,27 +512,44 @@ template <typename Node_T>
 requires DataflowNode<Node_T> && Outputs<Node_T> && (!HasControlOutputs<Node_T>)
 struct safe_node_outputs<Node_T>
 {
-  using info = info_functions_2<Node_T>;
+  using outlets_refl = outlet_reflection<Node_T>;
 
   // std::tuple<ossia::value_port, ossia::audio_port, ...>
-  typename info::ossia_outputs_tuple output_ports;
+  typename outlets_refl::ossia_outputs_tuple output_ports;
 };
+
+template <typename Node_T>
+struct gfx_aspect { };
+
+template <typename Node_T>
+requires DataflowNode<Node_T> && (inlet_reflection<Node_T>::texture_in_count > 0 || outlet_reflection<Node_T>::texture_out_count > 0)
+struct gfx_aspect<Node_T> {
+  gfx_aspect()
+  {
+
+  }
+  int32_t id{-1};
+  std::atomic_int32_t script_index{0};
+};
+
 
 template <DataflowNode Node_T>
 class safe_node final
     : public ossia::nonowning_graph_node
     , public safe_node_inputs<Node_T>
     , public safe_node_outputs<Node_T>
+    , public gfx_aspect<Node_T>
 {
 public:
   Node_T state;
 
-  using info = info_functions_2<Node_T>;
+  using inlets_refl = inlet_reflection<Node_T>;
+  using outlets_refl = outlet_reflection<Node_T>;
 
   safe_node(ossia::exec_state_facade st) noexcept
   {
-    m_inlets.reserve(info::inlet_size);
-    m_outlets.reserve(info::outlet_size);
+    m_inlets.reserve(inlets_refl::inlet_size);
+    m_outlets.reserve(outlets_refl::outlet_size);
 
     if constexpr(requires { state.inputs; })
     {
@@ -527,7 +570,7 @@ public:
   template <typename T, std::size_t ControlN>
   void control_updated_from_ui(T&& v)
   {
-    using control_member = std::tuple_element_t<ControlN, typename info::control_input_tuple>;
+    using control_member = std::tuple_element_t<ControlN, typename inlets_refl::control_input_tuple>;
     if constexpr(requires { control_member{}.port; })
     {
       // using port_index_t = typename info::template control_input_index<ControlN>;
@@ -562,14 +605,14 @@ public:
   {
     using namespace boost::pfr;
     using namespace std;
-    using control_member = std::tuple_element_t<ControlN, typename info::control_input_tuple>;
+    using control_member = std::tuple_element_t<ControlN, typename inlets_refl::control_input_tuple>;
     using control_type = decltype(control_member::control());
     using control_value_type = typename control_type::type;
 
     // ControlN = 0: first control in this->controls, this->control_tuple, etc..
 
     // Used to index into the set of input_ports
-    using port_index_t = typename info::template control_input_index<ControlN>;
+    using port_index_t = typename inlets_refl::template control_input_index<ControlN>;
 
     // Get the timed_vector<float>
     auto& vec = get<ControlN>(this->control_input_timed);
@@ -603,8 +646,8 @@ public:
   template <std::size_t ControlN>
   constexpr auto& get_control_outlet_accessor (const ossia::outlets& outl) noexcept
   {
-    static_assert(info::control_out_count > 0);
-    static_assert(ControlN < info::control_out_count);
+    static_assert(outlets_refl::control_out_count > 0);
+    static_assert(ControlN < outlets_refl::control_out_count);
 
     return std::get<ControlN>(this->control_outs_tuple);
   }
@@ -659,7 +702,7 @@ public:
   void apply_controls_impl(const std::index_sequence<CI...>&, Controls&&... ctls)
   {
     using namespace boost::pfr;
-    (apply_control_impl(get<info::template control_input_index<CI>::value...>(state.inputs), ctls),
+    (apply_control_impl(get<inlets_refl::template control_input_index<CI>::value...>(state.inputs), ctls),
      ...);
   }
 
@@ -669,7 +712,7 @@ public:
       return typename Node_T::control_policy{};
     }
     else {
-      if constexpr(boost::mp11::mp_any_of<typename info::control_input_tuple, uses_timed_values>::value)
+      if constexpr(boost::mp11::mp_any_of<typename inlets_refl::control_input_tuple, uses_timed_values>::value)
         return typename ossia::safe_nodes::default_tick{};
       else
         return typename ossia::safe_nodes::last_tick{};
@@ -833,10 +876,10 @@ public:
   template <std::size_t... CI>
   void apply_all_impl(
       const std::index_sequence<CI...>&,
-      ossia::token_request tk,
+      const ossia::token_request& tk,
       ossia::exec_state_facade st) noexcept
   {
-    static_assert(info::control_in_count > 0);
+    static_assert(inlets_refl::control_in_count > 0);
 
     get_policy()([&] (const ossia::token_request& sub_tk, auto&& ... ctls) {
                    apply_controls_impl(std::make_index_sequence<sizeof... (ctls)>{}, ctls...);
@@ -858,13 +901,13 @@ public:
   run(const ossia::token_request& tk, ossia::exec_state_facade st) noexcept override
   {
     /// General setup ///
-    if constexpr(info::control_out_count > 0)
+    if constexpr(outlets_refl::control_out_count > 0)
     {
       clear_controls_out();
     }
 
     /// Execution ///
-    if constexpr (info::control_in_count == 0)
+    if constexpr (inlets_refl::control_in_count == 0)
     {
       // If there are no controls
       do_run(tk, st);
@@ -872,7 +915,7 @@ public:
     else
     {
       // If there are controls
-      using controls_indices = std::make_index_sequence<info::control_in_count>;
+      using controls_indices = std::make_index_sequence<inlets_refl::control_in_count>;
 
       apply_all_impl(controls_indices{}, tk, st);
 
@@ -886,7 +929,7 @@ public:
     }
 
     /// Post-execution tasks ///
-    if constexpr(info::control_out_count > 0)
+    if constexpr(outlets_refl::control_out_count > 0)
     {
       std::size_t i = 0;
       bool ok = false;
@@ -914,7 +957,7 @@ public:
 
   void all_notes_off() noexcept override
   {
-    if constexpr (info::midi_in_count > 0)
+    if constexpr (inlets_refl::midi_in_count > 0)
     {
       // TODO
     }

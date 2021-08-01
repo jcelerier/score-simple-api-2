@@ -1,8 +1,8 @@
 #pragma once
-#include <SimpleApi2/Attributes.hpp>
-#include <Control/Widgets.hpp>
+#include <oscr/Attributes.hpp>
+#include <oscr/Widgets.hpp>
 
-namespace SimpleApi2
+namespace oscr
 {
 /**
  * This example exhibits a more advanced multi-channel processor, with side-chain inputs and outputs.

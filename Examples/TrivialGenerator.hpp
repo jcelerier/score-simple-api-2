@@ -1,7 +1,7 @@
 #pragma once
-#include <SimpleApi2/Attributes.hpp>
+#include <oscr/Attributes.hpp>
 
-namespace SimpleApi2
+namespace oscr
 {
 
 struct TrivialGeneratorExample

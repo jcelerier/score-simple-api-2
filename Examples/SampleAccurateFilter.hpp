@@ -1,9 +1,8 @@
 #pragma once
-#include <SimpleApi2/Attributes.hpp>
-#include <ossia/detail/timed_vec.hpp>
+#include <oscr/Attributes.hpp>
 #include <cmath>
 
-namespace SimpleApi2
+namespace oscr
 {
 
 struct SampleAccurateFilterExample

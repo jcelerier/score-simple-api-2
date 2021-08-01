@@ -1,11 +1,10 @@
 #pragma once
-#include <SimpleApi2/Attributes.hpp>
-#include <Control/Widgets.hpp>
+#include <oscr/Attributes.hpp>
+#include <oscr/Widgets.hpp>
 #include <ossia/network/dataspace/time.hpp>
 #include <ossia/network/dataspace/gain.hpp>
-#include <ossia/dataflow/exec_state_facade.hpp>
 
-namespace SimpleApi2
+namespace oscr
 {
 /**
  * This example exhibits a simple, monophonic synthesizer
@@ -19,7 +18,6 @@ struct Synth
   meta_attribute(author, "<AUTHOR>");
   meta_attribute(description, "<DESCRIPTION>");
   meta_attribute(uuid, "93eb0f78-3d97-4273-8a11-3df5714d66dc");
-
 
   struct {
     /** MIDI input: simply a list of timestamped messages.

@@ -1,8 +1,8 @@
 #pragma once
-#include <SimpleApi2/Attributes.hpp>
-#include <Control/Widgets.hpp>
+#include <oscr/Attributes.hpp>
+#include <oscr/Widgets.hpp>
 
-namespace SimpleApi2
+namespace oscr
 {
 /**
  * This example exhibits a simple multi-channel effect processor.
@@ -31,6 +31,9 @@ struct AudioEffectExample
    * then it is assumed that we are writing an effect processor, where the outputs
    * should match the inputs. There will be as many output channels as input channels,
    * with enough samples allocated to write from 0 to N.
+   *
+   * In all the other cases, it is necessary to specify the number of channels for the output
+   * as in the Sidechain example.
    */
   struct {
     struct {

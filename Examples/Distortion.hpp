@@ -1,11 +1,11 @@
 #pragma once
-#include <SimpleApi2/Attributes.hpp>
-#include <SimpleApi2/Concepts.hpp>
-#include <Control/Widgets.hpp>
+#include <oscr/Attributes.hpp>
+#include <oscr/Concepts.hpp>
+#include <oscr/Widgets.hpp>
 #include <cmath>
 
 
-namespace SimpleApi2
+namespace oscr
 {
 struct Distortion
 {
@@ -47,7 +47,9 @@ struct Distortion
 
   } outputs;
 
+  /** In this buffer, as an example we will store a mono signal. **/
   ossia::audio_channel temp_buffer;
+
   /** Will be called upon creation, and whenever the buffer size / sample rate changes **/
   void reset(ossia::exec_state_facade st)
   {
@@ -120,9 +122,8 @@ struct Distortion
 
     for(int64_t j = 0; j < samples_to_write; j++)
     {
-      using namespace std;
       // Tanh
-      out_l[j] = tanh(temp_buffer[j] * gain.value);
+      out_l[j] = std::tanh(temp_buffer[j] * gain.value);
 
       // Bitcrush
       out_l[j] = int(out_l[j] * 4.) / 4.;

@@ -1,7 +1,7 @@
 #pragma once
 #include <boost/pfr.hpp>
-#include <SimpleApi2/Concepts.hpp>
-#include <SimpleApi2/Metadatas.hpp>
+#include <oscr/Concepts.hpp>
+#include <oscr/Metadatas.hpp>
 
 #include <Process/ProcessMetadata.hpp>
 #include <Process/Process.hpp>
@@ -11,13 +11,14 @@
 #include <Process/Dataflow/PortFactory.hpp>
 #include <score_plugin_engine.hpp>
 #include <ossia/detail/typelist.hpp>
+#include <Gfx/TexturePort.hpp>
 
 /**
  * This file instantiates the classes that are provided by this plug-in.
  */
 
 ////////// METADATA ////////////
-namespace SimpleApi2
+namespace oscr
 {
 struct is_control
 {
@@ -25,24 +26,24 @@ struct is_control
 template <DataflowNode Info, typename = is_control>
 class ProcessModel;
 }
-template <SimpleApi2::DataflowNode Info>
-struct Metadata<PrettyName_k, SimpleApi2::ProcessModel<Info>>
+template <oscr::DataflowNode Info>
+struct Metadata<PrettyName_k, oscr::ProcessModel<Info>>
 {
   static Q_DECL_RELAXED_CONSTEXPR auto get()
   {
     return Info::prettyName();
   }
 };
-template <SimpleApi2::DataflowNode Info>
-struct Metadata<Category_k, SimpleApi2::ProcessModel<Info>>
+template <oscr::DataflowNode Info>
+struct Metadata<Category_k, oscr::ProcessModel<Info>>
 {
   static Q_DECL_RELAXED_CONSTEXPR auto get()
   {
     return Info::category();
   }
 };
-template <SimpleApi2::DataflowNode Info>
-struct Metadata<Tags_k, SimpleApi2::ProcessModel<Info>>
+template <oscr::DataflowNode Info>
+struct Metadata<Tags_k, oscr::ProcessModel<Info>>
 {
   static QStringList get()
   {
@@ -54,10 +55,9 @@ struct Metadata<Tags_k, SimpleApi2::ProcessModel<Info>>
   }
 };
 
-template <SimpleApi2::DataflowNode Info>
-struct Metadata<Process::Descriptor_k, SimpleApi2::ProcessModel<Info>>
+template <oscr::DataflowNode Info>
+struct Metadata<Process::Descriptor_k, oscr::ProcessModel<Info>>
 {
-  using info = SimpleApi2::info_functions_2<Info>;
   static std::vector<Process::PortType> inletDescription()
   {
     std::vector<Process::PortType> port;
@@ -96,14 +96,14 @@ struct Metadata<Process::Descriptor_k, SimpleApi2::ProcessModel<Info>>
         Info::category(),
         Info::description(),
         Info::author(),
-        Metadata<Tags_k, SimpleApi2::ProcessModel<Info>>::get(),
+        Metadata<Tags_k, oscr::ProcessModel<Info>>::get(),
         inletDescription(),
         outletDescription()};
     return desc;
   }
 };
 template <typename Info>
-struct Metadata<Process::ProcessFlags_k, SimpleApi2::ProcessModel<Info>>
+struct Metadata<Process::ProcessFlags_k, oscr::ProcessModel<Info>>
 {
   static Process::ProcessFlags get() noexcept {
     if constexpr(requires { Info::flags(); }) {
@@ -114,7 +114,7 @@ struct Metadata<Process::ProcessFlags_k, SimpleApi2::ProcessModel<Info>>
   }
 };
 template <typename Info>
-struct Metadata<ObjectKey_k, SimpleApi2::ProcessModel<Info>>
+struct Metadata<ObjectKey_k, oscr::ProcessModel<Info>>
 {
   static Q_DECL_RELAXED_CONSTEXPR auto get() noexcept
   {
@@ -122,7 +122,7 @@ struct Metadata<ObjectKey_k, SimpleApi2::ProcessModel<Info>>
   }
 };
 template <typename Info>
-struct Metadata<ConcreteKey_k, SimpleApi2::ProcessModel<Info>>
+struct Metadata<ConcreteKey_k, oscr::ProcessModel<Info>>
 {
   static Q_DECL_RELAXED_CONSTEXPR UuidKey<Process::ProcessModel> get()
   {
@@ -130,7 +130,7 @@ struct Metadata<ConcreteKey_k, SimpleApi2::ProcessModel<Info>>
   }
 };
 
-namespace SimpleApi2
+namespace oscr
 {
 
 struct InletInitFunc
@@ -153,6 +153,12 @@ struct InletInitFunc
   void operator()(const MidiInput auto& in)
   {
     auto p = new Process::MidiInlet(Id<Process::Port>(inlet++), &self);
+    p->setName(QString::fromUtf8(in.name()));
+    ins.push_back(p);
+  }
+  void operator()(const TextureInput auto& in)
+  {
+    auto p = new Gfx::TextureInlet(Id<Process::Port>(inlet++), &self);
     p->setName(QString::fromUtf8(in.name()));
     ins.push_back(p);
   }
@@ -188,6 +194,12 @@ struct OutletInitFunc
   void operator()(const MidiOutput auto& out)
   {
     auto p = new Process::MidiOutlet(Id<Process::Port>(outlet++), &self);
+    p->setName(QString::fromUtf8(out.name()));
+    outs.push_back(p);
+  }
+  void operator()(const TextureOutput auto& out)
+  {
+    auto p = new Gfx::TextureOutlet(Id<Process::Port>(outlet++), &self);
     p->setName(QString::fromUtf8(out.name()));
     outs.push_back(p);
   }
@@ -264,13 +276,13 @@ struct PortLoadFunc
   }
 };
 */
-template <SimpleApi2::DataflowNode Info, typename>
+template <oscr::DataflowNode Info, typename>
 class ProcessModel final : public Process::ProcessModel
 {
   SCORE_SERIALIZE_FRIENDS
   PROCESS_METADATA_IMPL(ProcessModel<Info>)
-  friend struct TSerializer<DataStream, SimpleApi2::ProcessModel<Info>>;
-  friend struct TSerializer<JSONObject, SimpleApi2::ProcessModel<Info>>;
+  friend struct TSerializer<DataStream, oscr::ProcessModel<Info>>;
+  friend struct TSerializer<JSONObject, oscr::ProcessModel<Info>>;
 
 public:
   ProcessModel(
@@ -309,14 +321,14 @@ public:
 }
 
 template <typename Info>
-struct is_custom_serialized<SimpleApi2::ProcessModel<Info>> : std::true_type
+struct is_custom_serialized<oscr::ProcessModel<Info>> : std::true_type
 {
 };
 
 template <template <typename, typename> class Model, typename Info>
-struct TSerializer<DataStream, Model<Info, SimpleApi2::is_control>>
+struct TSerializer<DataStream, Model<Info, oscr::is_control>>
 {
-  using model_type = Model<Info, SimpleApi2::is_control>;
+  using model_type = Model<Info, oscr::is_control>;
   static void readFrom(DataStream::Serializer& s, const model_type& obj)
   {
     Process::readPorts(s, obj.m_inlets, obj.m_outlets);
@@ -331,9 +343,9 @@ struct TSerializer<DataStream, Model<Info, SimpleApi2::is_control>>
 };
 
 template <template <typename, typename> class Model, typename Info>
-struct TSerializer<JSONObject, Model<Info, SimpleApi2::is_control>>
+struct TSerializer<JSONObject, Model<Info, oscr::is_control>>
 {
-  using model_type = Model<Info, SimpleApi2::is_control>;
+  using model_type = Model<Info, oscr::is_control>;
   static void readFrom(JSONObject::Serializer& s, const model_type& obj)
   {
     using namespace Control;
@@ -352,9 +364,9 @@ struct TSerializer<JSONObject, Model<Info, SimpleApi2::is_control>>
 namespace score
 {
 template <typename Vis, typename Info>
-void serialize_dyn_impl(Vis& v, const SimpleApi2::ProcessModel<Info>& t)
+void serialize_dyn_impl(Vis& v, const oscr::ProcessModel<Info>& t)
 {
-  TSerializer<typename Vis::type, SimpleApi2::ProcessModel<Info>>::readFrom(
+  TSerializer<typename Vis::type, oscr::ProcessModel<Info>>::readFrom(
       v, t);
 }
 }

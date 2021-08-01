@@ -26,17 +26,18 @@ add_library(
   Examples/Distortion.hpp
   Examples/CCC.hpp
 
-  SimpleApi2/Concepts.hpp
-  SimpleApi2/Executor.hpp
-  SimpleApi2/ExecutorNode.hpp
-  SimpleApi2/Layer.hpp
-  SimpleApi2/Metadatas.hpp
-  SimpleApi2/ProcessModel.hpp
+  oscr/Concepts.hpp
+  oscr/GpuNode.hpp
+  oscr/Executor.hpp
+  oscr/ExecutorNode.hpp
+  oscr/Layer.hpp
+  oscr/Metadatas.hpp
+  oscr/ProcessModel.hpp
 
   score_addon_simpleapi2.hpp
   score_addon_simpleapi2.cpp
 )
 
-target_link_libraries(score_addon_simpleapi2 PRIVATE score_plugin_engine)
+target_link_libraries(score_addon_simpleapi2 PRIVATE score_plugin_engine score_plugin_gfx)
 
 setup_score_plugin(score_addon_simpleapi2)

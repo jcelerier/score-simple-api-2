@@ -1,8 +1,8 @@
 #include "score_addon_simpleapi2.hpp"
 
-#include <SimpleApi2/ProcessModel.hpp>
-#include <SimpleApi2/Executor.hpp>
-#include <SimpleApi2/Layer.hpp>
+#include <oscr/ProcessModel.hpp>
+#include <oscr/Executor.hpp>
+#include <oscr/Layer.hpp>
 
 #include <score/plugins/FactorySetup.hpp>
 
@@ -11,6 +11,8 @@
 #include <Examples/Empty.hpp>
 #include <Examples/SampleAccurateGenerator.hpp>
 #include <Examples/SampleAccurateFilter.hpp>
+#include <Examples/TextureGenerator.hpp>
+#include <Examples/TextureFilter.hpp>
 #include <Examples/TrivialGenerator.hpp>
 #include <Examples/TrivialFilter.hpp>
 #include <Examples/RawPorts.hpp>
@@ -35,25 +37,25 @@
 
 
 
-namespace SimpleApi2
+namespace oscr
 {
-template <SimpleApi2::DataflowNode Node>
-using ProcessFactory = Process::ProcessFactory_T<SimpleApi2::ProcessModel<Node>>;
+template <oscr::DataflowNode Node>
+using ProcessFactory = Process::ProcessFactory_T<oscr::ProcessModel<Node>>;
 
 
-template <SimpleApi2::DataflowNode Node>
+template <oscr::DataflowNode Node>
 struct ExecutorFactory final
-    : public Execution::ProcessComponentFactory_T<SimpleApi2::Executor<Node>>
+    : public Execution::ProcessComponentFactory_T<oscr::Executor<Node>>
 {
   using Execution::ProcessComponentFactory_T<
-      SimpleApi2::Executor<Node>>::ProcessComponentFactory_T;
+      oscr::Executor<Node>>::ProcessComponentFactory_T;
 };
 
  //template <typename Node>
- //using LayerFactory = SimpleApi2::LayerFactory<Node>;
+ //using LayerFactory = oscr::LayerFactory<Node>;
 
 
-template <SimpleApi2::DataflowNode... Nodes>
+template <oscr::DataflowNode... Nodes>
 std::vector<std::unique_ptr<score::InterfaceBase>> instantiate_fx(
     const score::ApplicationContext& ctx,
     const score::InterfaceKey& key)
@@ -62,15 +64,15 @@ std::vector<std::unique_ptr<score::InterfaceBase>> instantiate_fx(
   if (key == Execution::ProcessComponentFactory::static_interfaceKey())
   {
     //static_assert((requires { std::declval<Nodes>().run({}, {}); } && ...));
-    (v.push_back(std::make_unique<SimpleApi2::ExecutorFactory<Nodes>>()), ...);
+    (v.push_back(std::make_unique<oscr::ExecutorFactory<Nodes>>()), ...);
   }
   else if (key == Process::ProcessModelFactory::static_interfaceKey())
   {
-    (v.push_back(std::make_unique<SimpleApi2::ProcessFactory<Nodes>>()), ...);
+    (v.push_back(std::make_unique<oscr::ProcessFactory<Nodes>>()), ...);
   }
   //else if (key == Process::LayerFactory::static_interfaceKey())
   //{
-  //  (v.push_back(make_interface<SimpleApi2::LayerFactory<Nodes>>()), ...);
+  //  (v.push_back(make_interface<oscr::LayerFactory<Nodes>>()), ...);
   //}
   return v;
 }
@@ -84,20 +86,20 @@ score_addon_simpleapi2::factories(
     const score::ApplicationContext& ctx,
     const score::InterfaceKey& key) const
 {
-  using namespace SimpleApi2;
-  return SimpleApi2::instantiate_fx<
-      SimpleApi2::Distortion
-    , SimpleApi2::CCC
-    , SimpleApi2::RawPortsExample
-    , SimpleApi2::EmptyExample,
-      SimpleApi2::Synth
-
-    , SimpleApi2::SampleAccurateGeneratorExample,
-      SimpleApi2::SampleAccurateFilterExample,
-      SimpleApi2::TrivialGeneratorExample,
-      SimpleApi2::TrivialFilterExample,
-      SimpleApi2::AudioEffectExample,
-      SimpleApi2::AudioSidechainExample>(ctx, key);
+  using namespace oscr;
+  return oscr::instantiate_fx<
+      oscr::Distortion
+    , oscr::CCC
+    , oscr::RawPortsExample
+    , oscr::EmptyExample,
+      oscr::Synth
+    , oscr::TextureGeneratorExample, oscr::TextureFilterExample
+    , oscr::SampleAccurateGeneratorExample,
+      oscr::SampleAccurateFilterExample,
+      oscr::TrivialGeneratorExample,
+      oscr::TrivialFilterExample,
+      oscr::AudioEffectExample,
+      oscr::AudioSidechainExample>(ctx, key);
 }
 
 std::vector<score::PluginKey> score_addon_simpleapi2::required() const

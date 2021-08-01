@@ -3,9 +3,9 @@
 #include <boost/pfr.hpp>
 #include <boost/mp11/algorithm.hpp>
 #include <ossia/dataflow/safe_nodes/port.hpp>
-#include <SimpleApi2/Concepts.hpp>
-#include <SimpleApi2/Attributes.hpp>
-namespace SimpleApi2
+#include <oscr/Concepts.hpp>
+#include <oscr/Attributes.hpp>
+namespace oscr
 {
 
 template<typename T>
@@ -47,6 +47,8 @@ template<MidiInput T>
 struct get_ossia_inlet_type<T> { using type = ossia::midi_inlet; };
 template<ControlInput T>
 struct get_ossia_inlet_type<T> { using type = ossia::value_inlet; };
+template<TextureInput T>
+struct get_ossia_inlet_type<T> { using type = ossia::texture_inlet; };
 
 template<typename T>
 struct get_ossia_outlet_type;
@@ -58,6 +60,8 @@ template<MidiOutput T>
 struct get_ossia_outlet_type<T> { using type = ossia::midi_outlet; };
 template<ControlOutput T>
 struct get_ossia_outlet_type<T> { using type = ossia::value_outlet; };
+template<TextureOutput T>
+struct get_ossia_outlet_type<T> { using type = ossia::texture_outlet; };
 
 
 template<typename T>
@@ -91,6 +95,7 @@ struct inlet_reflection
   static constexpr auto audio_in_count = 0;
   static constexpr auto value_in_count = 0;
   static constexpr auto midi_in_count = 0;
+  static constexpr auto texture_in_count = 0;
   static constexpr auto control_in_count = 0;
 };
 
@@ -130,12 +135,13 @@ struct inlet_reflection<Node_T>
   using control_input_tuple = boost::mp11::mp_copy_if<inputs_tuple, is_control_input>;
 
   // tuple<float>
-  using control_input_values_type = typename SimpleApi2::get_control_type_list<control_input_tuple>::type;
+  using control_input_values_type = typename oscr::get_control_type_list<control_input_tuple>::type;
 
   static constexpr auto inlet_size = std::tuple_size_v<inputs_tuple>;
   static constexpr auto audio_in_count = boost::mp11::mp_count_if<inputs_tuple, IsAudioInput>::value;
   static constexpr auto value_in_count = boost::mp11::mp_count_if<inputs_tuple, IsValueInput>::value;
   static constexpr auto midi_in_count = boost::mp11::mp_count_if<inputs_tuple, IsMidiInput>::value;
+  static constexpr auto texture_in_count = boost::mp11::mp_count_if<inputs_tuple, IsTextureInput>::value;
   static constexpr auto control_in_count = boost::mp11::mp_count_if<inputs_tuple, IsControlInput>::value;
 };
 
@@ -154,6 +160,7 @@ struct outlet_reflection
   static constexpr auto audio_out_count = 0;
   static constexpr auto value_out_count = 0;
   static constexpr auto midi_out_count = 0;
+  static constexpr auto texture_out_count = 0;
   static constexpr auto control_out_count = 0;
 };
 
@@ -179,22 +186,27 @@ struct outlet_reflection<Node_T>
 
   using control_output_tuple = boost::mp11::mp_copy_if<outputs_tuple, is_control_output>;
 
-  using control_output_values_type = typename SimpleApi2::get_display_type_list<control_output_tuple>::type;
+  using control_output_values_type = typename oscr::get_display_type_list<control_output_tuple>::type;
 
   static constexpr auto outlet_size = std::tuple_size_v<outputs_tuple>;
   static constexpr auto audio_out_count = boost::mp11::mp_count_if<outputs_tuple, IsAudioOutput>::value;
   static constexpr auto value_out_count = boost::mp11::mp_count_if<outputs_tuple, IsValueOutput>::value;
   static constexpr auto midi_out_count = boost::mp11::mp_count_if<outputs_tuple, IsMidiOutput>::value;
+  static constexpr auto texture_out_count = boost::mp11::mp_count_if<outputs_tuple, IsTextureOutput>::value;
   static constexpr auto control_out_count = boost::mp11::mp_count_if<outputs_tuple, IsControlOutput>::value;
 };
 
-template<typename T>
-struct info_functions_2 : inlet_reflection<T>, outlet_reflection<T> { };
-
 
 template<typename T>
-concept HasControlInputs = info_functions_2<T>::control_in_count > 0;
+concept HasControlInputs = inlet_reflection<T>::control_in_count > 0;
 template<typename T>
-concept HasControlOutputs = info_functions_2<T>::control_out_count > 0;
+concept HasControlOutputs = outlet_reflection<T>::control_out_count > 0;
+template<typename T>
+concept HasTextureInputs = inlet_reflection<T>::texture_in_count > 0;
+template<typename T>
+concept HasTextureOutputs = outlet_reflection<T>::texture_out_count > 0;
+
+template<typename T>
+concept GpuNode = inlet_reflection<T>::texture_in_count > 0 || outlet_reflection<T>::texture_out_count > 0;
 
 }

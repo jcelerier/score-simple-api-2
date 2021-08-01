@@ -5,10 +5,11 @@
 #include <span>
 #include <ossia/dataflow/audio_port.hpp>
 #include <ossia/dataflow/safe_nodes/tick_policies.hpp>
+#include <boost/container/vector.hpp>
 #include <Process/ProcessFlags.hpp>
 #include <Process/ProcessMetadata.hpp>
 #include <score/plugins/UuidKey.hpp>
-namespace SimpleApi2
+namespace oscr
 {
 
 #define make_uuid(text) score::uuids::string_generator::compute((text))
@@ -25,6 +26,7 @@ concept NamedPort = requires(T a) {
   { QString::fromUtf8(a.name()) } ;
 };
 
+//// Audio inputs ////
 template<typename T>
 concept MultichannelAudioInput = requires (T a) {
   { a.samples.channels() } -> std::convertible_to<std::size_t>;
@@ -64,6 +66,7 @@ concept AudioInput = NamedPort<T> && (MultichannelAudioInput<T> || AudioEffectIn
 template<typename T>
 concept AudioOutput = NamedPort<T> && (MultichannelAudioOutput<T> || AudioEffectOutput<T> || PortAudioOutput<T>);
 
+//// Control ////
 template<typename T>
 concept ControlInput = requires (T a) {
   { a.control() };
@@ -73,6 +76,7 @@ concept ControlOutput = requires (T a) {
   { a.display() };
 };
 
+//// Value ////
 template<typename T>
 concept PortValueInput = (!ControlInput<T>) && requires (T a) {
   { a.port } -> std::same_as<const ossia::value_port*>;
@@ -110,6 +114,29 @@ template<typename T>
 concept ValueOutput = NamedPort<T> && (PortValueOutput<T> || TimedValueOutput<T> || SingleValueOutput<T>);
 
 
+//// Texture ////
+template<typename T>
+concept CPUTextureInput = requires (T a) {
+  { a.texture.bytes } ;
+};
+
+template<typename T>
+concept TextureInput = NamedPort<T> && CPUTextureInput<T>;
+
+template<typename T>
+concept CPUTextureOutput = requires (T a) {
+  { a.texture.bytes } ;
+  { a.texture.width } ;
+  { a.texture.height } ;
+  { a.texture.changed } ;
+};
+
+template<typename T>
+concept TextureOutput = NamedPort<T> && CPUTextureOutput<T>;
+
+
+//// MIDI ////
+
 template<typename T>
 concept PortMidiInput = requires (T a) {
   { a.port } -> std::same_as<const ossia::midi_port*>;
@@ -141,6 +168,8 @@ concept TimedVec = requires (T a) {
   { a.begin()->second };
 };
 
+
+
 template<typename T>
 concept Inputs = std::is_aggregate_v<decltype(T::inputs)> && !std::is_empty_v<decltype(T::inputs)>;
 template<typename T>
@@ -164,8 +193,7 @@ concept RunnableWithTokenRequest = requires(T t)
 
 template<typename T>
 concept Runnable = RunnableWithSampleCount<T> || RunnableWithTokenRequest<T> || RunnableWithoutArguments<T>;
-template<typename T>
-concept SimpleAudioProcessor = AudioEffectInput<decltype(T::inputs.audio)> && AudioEffectOutput<decltype(T::outputs.audio)>;
+
 
 template<typename T>
 concept DataflowNode = Runnable<T> && requires(T t)
@@ -180,18 +208,22 @@ template<typename T>
 using IsAudioInput = typename std::integral_constant< bool, AudioInput<T>>;
 template<typename T>
 using IsAudioOutput = typename std::integral_constant< bool, AudioOutput<T>>;
+
 template<typename T>
 using IsValueInput = typename std::integral_constant< bool, ValueInput<T>>;
 template<typename T>
 using IsValueOutput = typename std::integral_constant< bool, ValueOutput<T>>;
+
 template<typename T>
-using IsTimedValueInput = typename std::integral_constant< bool, TimedValueInput<T>>;
+using IsTextureInput = typename std::integral_constant< bool, TextureInput<T>>;
 template<typename T>
-using IsTimedValueOutput = typename std::integral_constant< bool, TimedValueOutput<T>>;
+using IsTextureOutput = typename std::integral_constant< bool, TextureOutput<T>>;
+
 template<typename T>
 using IsMidiInput = typename std::integral_constant< bool, MidiInput<T>>;
 template<typename T>
 using IsMidiOutput = typename std::integral_constant< bool, MidiOutput<T>>;
+
 template<typename T>
 using IsControlInput = typename std::integral_constant< bool, ControlInput<T>>;
 template<typename T>
@@ -251,6 +283,24 @@ struct multichannel_audio {
       c.reserve(bufferSize);
   }
 };
+
+
+struct rgba_texture {
+  unsigned char* bytes{};
+  int width{};
+  int height{};
+  bool changed{};
+
+  static auto allocate(int width, int height)
+  {
+    using namespace boost::container;
+    return vector<unsigned char>(width * height * 4, default_init);
+  }
+
+  void update(unsigned char* data, int w, int h)
+  { bytes = data; width = w; height = h; changed = true; }
+};
+
 }
 
 

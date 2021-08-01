@@ -1,8 +1,8 @@
 #pragma once
-#include <SimpleApi2/Attributes.hpp>
+#include <oscr/Attributes.hpp>
 #include <ossia/detail/logger.hpp>
 
-namespace SimpleApi2
+namespace oscr
 {
 /**
  * This example is the simplest possible score process. It will just print a hello world

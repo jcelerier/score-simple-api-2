@@ -1,42 +1,65 @@
 #pragma once
-#include <SimpleApi2/Attributes.hpp>
-#include <ossia/detail/timed_vec.hpp>
+#include <oscr/Attributes.hpp>
+#include <oscr/Concepts.hpp>
 #include <rnd/random.hpp>
 
-namespace SimpleApi2
+namespace oscr
 {
-
-struct ValueGeneratorExample
+struct TextureGeneratorExample
 {
-  meta_attribute(pretty_name, "My example generator");
-  meta_attribute(script_name, effect_gen);
+  meta_attribute(pretty_name, "My example texture generator");
+  meta_attribute(script_name, texture_gen);
   meta_attribute(category, Debug);
   meta_attribute(kind, Other);
   meta_attribute(author, "<AUTHOR>");
   meta_attribute(description, "<DESCRIPTION>");
-  meta_attribute(uuid, "c519b3c4-326e-4e80-8dec-d465264c5b08");
+  meta_attribute(uuid, "01247f4f-6b19-458d-845d-9f7cc2d9d663");
 
-  /**
-   * Here we define a single output, which allows writing
-   * sample-accurate data to an output port of the node.
-   * Timestamps start from zero (at the beginning of a buffer) to N:
-   * i ∈ [0; N( in the usual mathematic notation.
-   */
+  // By know you know the drill: define inputs, outputs...
   struct {
     struct {
-      // Give a name to our parameter to show the user
+      meta_control(Control::LogFloatSlider, "Bamboozling", 0.0001f, 0.1f, 0.f);
+
+      float value = 0.f;
+    } bamboozle;
+  } inputs;
+
+  struct {
+    struct {
       meta_attribute(name, "Out");
 
-      // The data type used must conform to std::map<int64_t, your_type>
-      ossia::timed_vec<int> values;
-    } value;
+      // This type is a view on a texture
+      oscr::rgba_texture texture;
+    } image;
   } outputs;
 
-  // Note that buffer sizes aren't necessarily powers-of-two: N can be 1 for instance.
-  void operator()(std::size_t N)
+  // Some place in RAM to store our pixels
+  boost::container::vector<unsigned char> bytes;
+
+  TextureGeneratorExample()
   {
-    // 0 : first sample of the buffer.
-    outputs.value.values[0] = rnd::rand(0, 100);
+    // Allocate some initial data
+    bytes = oscr::rgba_texture::allocate(480, 270);
+    for(unsigned char& c : bytes)
+    {
+      c = rnd::rand(0, 10);
+    }
+  }
+
+  // Note that as soon as we use textures,
+  // we run at frame rate (e.g. 60hz) instead of audio buffer rate
+  // (e.g. maybe 1000hz if you have a decent enough soundcard).
+  void operator()()
+  {
+    // Do some magic
+    int k = 0;
+    for (unsigned char& c : bytes)
+    {
+      c += k++ * inputs.bamboozle.value;
+    }
+
+    // Call this when the texture changed
+    outputs.image.texture.update(bytes.data(), 480, 270);
   }
 };
 }

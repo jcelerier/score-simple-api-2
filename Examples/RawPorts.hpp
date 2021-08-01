@@ -1,8 +1,8 @@
 #pragma once
-#include <SimpleApi2/Concepts.hpp>
-#include <SimpleApi2/Attributes.hpp>
+#include <oscr/Concepts.hpp>
+#include <oscr/Attributes.hpp>
 
-namespace SimpleApi2
+namespace oscr
 {
 struct RawPortsExample
 {

@@ -1,9 +1,8 @@
 #pragma once
-#include <SimpleApi2/Attributes.hpp>
-#include <Control/Widgets.hpp>
-#include <ossia/detail/timed_vec.hpp>
+#include <oscr/Attributes.hpp>
+#include <oscr/Widgets.hpp>
 
-namespace SimpleApi2
+namespace oscr
 {
 /**
  * As an example, here is a port of the CCC chaotic engine part of

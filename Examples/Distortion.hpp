@@ -5,7 +5,7 @@
 #include <cmath>
 
 
-namespace oscr
+namespace examples
 {
 struct Distortion
 {
@@ -27,7 +27,7 @@ struct Distortion
   struct {
     struct {
       meta_attribute(name, "In");
-      multichannel_audio_view samples;
+      oscr::multichannel_audio_view samples;
     } audio;
 
     struct {
@@ -42,7 +42,7 @@ struct Distortion
   struct {
     struct {
       meta_attribute(name, "Out")
-      multichannel_audio samples;
+      oscr::multichannel_audio samples;
     } audio;
 
   } outputs;

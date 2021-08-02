@@ -9,15 +9,43 @@ namespace oscr
 {
 
 template<typename T>
-struct get_control_value_type
+concept control_has_type = requires (T t) {
+  typename T::type;
+};
+template<typename T>
+concept control_definition_has_type = control_has_type<std::remove_const_t<std::remove_reference_t<decltype(T{}.control())>>>;
+
+template<typename T>
+struct get_control_value_type;
+
+template<typename T>
+requires control_definition_has_type<T>
+struct get_control_value_type<T>
 {
-  using type = typename decltype(std::remove_reference_t<T>::control())::type;
+  using type = typename std::remove_reference_t<decltype(T{}.control())>::type;
 };
 
 template<typename T>
-struct get_display_value_type
+requires requires { T{}.value; } && (!control_definition_has_type<T>)
+struct get_control_value_type<T>
 {
-  using type = typename decltype(std::remove_reference_t<T>::display())::type;
+  using type = decltype(T::value);
+};
+
+template<typename T>
+struct get_display_value_type;
+
+template<typename T>
+requires requires { decltype(T{}.display())::type; }
+struct get_display_value_type<T>
+{
+  using type = typename T::type;
+};
+
+template<typename T>
+requires requires { T{}.value; } && (!requires { decltype(T{}.display())::type; }) struct get_display_value_type<T>
+{
+  using type = decltype(T::value);
 };
 
 template<typename>

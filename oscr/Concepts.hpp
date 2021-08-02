@@ -21,6 +21,19 @@ namespace oscr
 
 #define constant static inline constexpr auto
 
+template<typename N>
+consteval score::uuid_t uuid_from_string() {
+  if constexpr(requires { { N::uuid() } -> std::convertible_to<score::uuid_t>; })
+  {
+    return N::uuid();
+  }
+  else
+  {
+    constexpr const char* str = N::uuid();
+    return score::uuids::string_generator::compute(str, str + 37);
+  }
+}
+
 template<typename T>
 concept NamedPort = requires(T a) {
   { QString::fromUtf8(a.name()) } ;
@@ -71,6 +84,42 @@ template<typename T>
 concept ControlInput = requires (T a) {
   { a.control() };
 };
+template<typename T>
+concept FullControlImpl = requires (T a) {
+  { a.control() } -> std::convertible_to<::ossia::safe_nodes::control_in>;
+};
+
+
+template<ControlInput T>
+constexpr auto get_control()
+{
+  if constexpr(FullControlImpl<T>)
+  {
+    return T::control();
+  }
+  else
+  {
+    using value_type = decltype(T::value);
+    constexpr auto c = T::control();
+    constexpr auto name = T::name();
+    if constexpr(std::is_same_v<value_type, float>) {
+      return Control::FloatSlider{name, c.min, c.max, c.init};
+    }
+    else if constexpr(std::is_same_v<value_type, int>) {
+      return Control::IntSlider{name, c.min, c.max, c.init};
+    }
+    else if constexpr(std::is_same_v<value_type, bool>) {
+      return Control::Toggle{name, c.init};
+    }
+    else if constexpr(std::is_same_v<value_type, std::string>) {
+      return Control::LineEdit{name, c.init};
+    }
+  }
+}
+template<ControlInput T>
+constexpr auto get_control(const T& t)
+{ return get_control<T>(); }
+
 template<typename T>
 concept ControlOutput = requires (T a) {
   { a.display() };
@@ -198,8 +247,7 @@ concept Runnable = RunnableWithSampleCount<T> || RunnableWithTokenRequest<T> || 
 template<typename T>
 concept DataflowNode = Runnable<T> && requires(T t)
 {
-  { t.prettyName() };
-  { t.objectKey() };
+  { t.name() };
   { t.uuid() };
 };
 

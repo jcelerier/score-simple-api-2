@@ -4,7 +4,7 @@
 #include <ossia/network/dataspace/time.hpp>
 #include <ossia/network/dataspace/gain.hpp>
 
-namespace oscr
+namespace examples
 {
 /**
  * This example exhibits a simple, monophonic synthesizer

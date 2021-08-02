@@ -137,7 +137,7 @@ struct InitInlets
     if constexpr(requires { ctrl.port; })
       ctrl.port = std::addressof(*port);
 
-    ctrl.control().setup_exec(port);
+    get_control(ctrl).setup_exec(port);
   }
 };
 
@@ -606,7 +606,8 @@ public:
     using namespace boost::pfr;
     using namespace std;
     using control_member = std::tuple_element_t<ControlN, typename inlets_refl::control_input_tuple>;
-    using control_type = decltype(control_member::control());
+    constexpr auto control = get_control<control_member>();
+    using control_type = decltype(control);
     using control_value_type = typename control_type::type;
 
     // ControlN = 0: first control in this->controls, this->control_tuple, etc..
@@ -656,7 +657,8 @@ public:
   void load_control_from_port(Vec& vec, const Vp& vp) noexcept
   {
     using namespace boost::pfr;
-    constexpr const auto ctrl = (std::remove_reference_t<decltype(get<PortN>(state.inputs))>::control)();
+    using control_member = std::remove_reference_t<decltype(get<PortN>(state.inputs))>;
+    constexpr const auto ctrl = get_control<control_member>();
     if constexpr(Validate)
     {
       for (auto& v : vp)
@@ -702,7 +704,7 @@ public:
   void apply_controls_impl(const std::index_sequence<CI...>&, Controls&&... ctls)
   {
     using namespace boost::pfr;
-    (apply_control_impl(get<inlets_refl::template control_input_index<CI>::value...>(state.inputs), ctls),
+    (apply_control_impl(get<inlets_refl::template control_input_index<CI>::value>(state.inputs), ctls),
      ...);
   }
 

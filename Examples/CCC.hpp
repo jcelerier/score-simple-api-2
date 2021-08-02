@@ -2,7 +2,7 @@
 #include <oscr/Attributes.hpp>
 #include <oscr/Widgets.hpp>
 
-namespace oscr
+namespace examples
 {
 /**
  * As an example, here is a port of the CCC chaotic engine part of

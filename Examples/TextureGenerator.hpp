@@ -3,8 +3,24 @@
 #include <oscr/Concepts.hpp>
 #include <rnd/random.hpp>
 
-namespace oscr
+namespace examples
 {
+/**
+ * The next part is about working with the video system.
+ *
+ * Note that this is a very inefficient way of doing generation / processing
+ * of video data, as this is done on the CPU ; this should
+ * only ever be used if the algorithm is not implementable as a GPU shader,
+ * with the ISF format that score supports.
+ * For instance, if you want to use some OpenCV or Dlib goodness.
+ *
+ * Note that the API is a bit more limited, as in this case the nodes
+ * run in the GPU processing thread, at the screen / output's frame rate, instead
+ * of running in the audio thread, at audio buffer rate.
+ *
+ * In particular, currently, timing information is not accessible, and it is only
+ * possible to have an output texture.
+ */
 struct TextureGeneratorExample
 {
   meta_attribute(pretty_name, "My example texture generator");

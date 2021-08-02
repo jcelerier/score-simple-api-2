@@ -1,7 +1,7 @@
 #pragma once
 #include <oscr/Attributes.hpp>
 
-namespace oscr
+namespace examples
 {
 
 struct TrivialGeneratorExample

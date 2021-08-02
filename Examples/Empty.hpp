@@ -2,7 +2,7 @@
 #include <oscr/Attributes.hpp>
 #include <ossia/detail/logger.hpp>
 
-namespace oscr
+namespace examples
 {
 /**
  * This example is the simplest possible score process. It will just print a hello world

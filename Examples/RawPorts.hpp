@@ -2,7 +2,7 @@
 #include <oscr/Concepts.hpp>
 #include <oscr/Attributes.hpp>
 
-namespace oscr
+namespace examples
 {
 struct RawPortsExample
 {

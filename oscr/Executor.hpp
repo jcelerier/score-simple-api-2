@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <oscr/ProcessModel.hpp>
 #include <oscr/ExecutorNode.hpp>
 #include <oscr/GpuNode.hpp>
@@ -55,8 +55,9 @@ struct setup_Impl0
       using Info = Node;
       constexpr auto control_index = ControlIndexT::value;
       using port_index_t = typename inlet_reflection<Info>::template control_input_index<ControlIndexT::value>;
-
-      constexpr const auto control_spec = tuple_element_t<port_index_t::value, decltype(ExecNode::state.inputs)>::control();
+      using control_tuple = typename inlet_reflection<Info>::control_input_tuple;
+      using control_member = std::tuple_element_t<ControlIndexT::value, control_tuple>;
+      constexpr auto control_spec = get_control<control_member>();
       using control_type = decltype(control_spec);
 
       using control_value_type = typename control_type::type;
@@ -82,7 +83,9 @@ struct setup_Impl0
       constexpr auto control_index = ControlIndexT::value;
       using port_index_t = typename inlet_reflection<Info>::template control_input_index<ControlIndexT::value>;
 
-      constexpr const auto control_spec = tuple_element_t<port_index_t::value, decltype(ExecNode::state.inputs)>::control();
+      using control_tuple = typename inlet_reflection<Info>::control_input_tuple;
+      using control_member = std::tuple_element_t<ControlIndexT::value, control_tuple>;
+      constexpr auto control_spec = get_control<control_member>();
       using control_type = decltype(control_spec);
 
       using control_value_type = typename control_type::type;
@@ -102,8 +105,9 @@ struct setup_Impl0
     using Info = Node;
     constexpr int control_index = ControlIndexT::value;
     using port_index_t = typename inlet_reflection<Info>::template control_input_index<ControlIndexT::value>;
-
-    constexpr const auto control_spec = tuple_element_t<port_index_t::value, decltype(ExecNode::state.inputs)>::control();
+    using control_tuple = typename inlet_reflection<Info>::control_input_tuple;
+    using control_member = std::tuple_element_t<ControlIndexT::value, control_tuple>;
+    constexpr auto control_spec = get_control<control_member>();
     using control_type = decltype(control_spec);
 
     auto inlet = static_cast<Process::ControlInlet*>(element.inlets()[port_index_t::value]);
@@ -114,7 +118,7 @@ struct setup_Impl0
     if constexpr (control_type::must_validate)
     {
       if (auto res = control_spec.fromValue(inlet->value()))
-        get<control_index>(node.controls) = *res;
+        get<control_index>(node.control_input) = *res;
 
       QObject::connect(
           inlet,
@@ -136,7 +140,7 @@ struct setup_Impl0
 };
 
 template <DataflowNode Node>
-struct setup_Impl1
+struct ApplyEngineControlChangeToUI
 {
   using ExecNode = safe_node<Node>;
   using Model = ProcessModel<Node>;
@@ -153,11 +157,14 @@ struct setup_Impl1
     constexpr int control_index = ControlIndexT::value;
     using port_index_t = typename inlet_reflection<Node>::template control_input_index<ControlIndexT::value>;
 
-    constexpr const auto control_spec = tuple_element_t<port_index_t::value, decltype(ExecNode::state.inputs)>::control();
+    using control_tuple = typename inlet_reflection<Node>::control_input_tuple;
+    using control_member = std::tuple_element_t<ControlIndexT::value, control_tuple>;
+    constexpr auto control_spec = get_control<control_member>();
+    using control_type = decltype(control_spec);
 
     auto inlet = static_cast<Process::ControlInlet*>(element.inlets()[port_index_t::value]);
 
-    inlet->setValue(control_spec.toValue(get<control_index>(arr)));
+    inlet->setExecutionValue(control_spec.toValue(get<control_index>(arr)));
   }
 };
 
@@ -209,7 +216,7 @@ struct ExecutorGuiUpdate
     {
       constexpr const auto control_count = inlet_reflection<Node>::control_in_count;
 
-      ossia::for_each_in_range<control_count>(setup_Impl1<Node>{arr, element});
+      ossia::for_each_in_range<control_count>(ApplyEngineControlChangeToUI<Node>{arr, element});
     }
   }
 
@@ -257,7 +264,7 @@ public:
   static Q_DECL_RELAXED_CONSTEXPR UuidKey<score::Component>
   static_key() noexcept
   {
-    return Node::uuid();
+    return uuid_from_string<Node>();
   }
 
   UuidKey<score::Component> key() const noexcept final override

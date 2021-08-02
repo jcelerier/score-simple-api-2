@@ -2,7 +2,7 @@
 #include <oscr/Attributes.hpp>
 #include <oscr/Widgets.hpp>
 
-namespace oscr
+namespace examples
 {
 /**
  * This example exhibits a more advanced multi-channel processor, with side-chain inputs and outputs.

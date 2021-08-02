@@ -1,6 +1,7 @@
 #pragma once
 #include <boost/pfr.hpp>
 #include <oscr/Concepts.hpp>
+#include <oscr/Attributes.hpp>
 #include <oscr/Metadatas.hpp>
 
 #include <Process/ProcessMetadata.hpp>
@@ -31,15 +32,17 @@ struct Metadata<PrettyName_k, oscr::ProcessModel<Info>>
 {
   static Q_DECL_RELAXED_CONSTEXPR auto get()
   {
-    return Info::prettyName();
+    return Info::name();
   }
 };
 template <oscr::DataflowNode Info>
 struct Metadata<Category_k, oscr::ProcessModel<Info>>
 {
-  static Q_DECL_RELAXED_CONSTEXPR auto get()
+  static Q_DECL_RELAXED_CONSTEXPR const char* get()
   {
-    return Info::category();
+    if constexpr(requires { Info::category(); })
+      return Info::category();
+    return "Other";
   }
 };
 template <oscr::DataflowNode Info>
@@ -90,12 +93,14 @@ struct Metadata<Process::Descriptor_k, oscr::ProcessModel<Info>>
   }
   static Process::Descriptor get()
   {
+// literate programming goes brr
+#define if_exists(Expr, Else) [] { if constexpr(requires { Expr; }) return Expr; Else; }()
     static Process::Descriptor desc{
-        Info::prettyName(),
-        Info::kind(),
-        Info::category(),
-        Info::description(),
-        Info::author(),
+        Metadata<PrettyName_k, oscr::ProcessModel<Info>>::get(),
+        if_exists(Info::kind(), else return Process::ProcessCategory::Other;),
+        Metadata<Category_k, oscr::ProcessModel<Info>>::get(),
+        if_exists(Info::description(), else return QString{};),
+        if_exists(Info::author(), else return QStringLiteral("Unknown");),
         Metadata<Tags_k, oscr::ProcessModel<Info>>::get(),
         inletDescription(),
         outletDescription()};
@@ -118,7 +123,12 @@ struct Metadata<ObjectKey_k, oscr::ProcessModel<Info>>
 {
   static Q_DECL_RELAXED_CONSTEXPR auto get() noexcept
   {
-    return Info::objectKey();
+    if constexpr(requires { Info::script_name(); }) {
+      return Info::script_name();
+    }
+    else {
+      return Info::name();
+    }
   }
 };
 template <typename Info>
@@ -126,7 +136,7 @@ struct Metadata<ConcreteKey_k, oscr::ProcessModel<Info>>
 {
   static Q_DECL_RELAXED_CONSTEXPR UuidKey<Process::ProcessModel> get()
   {
-    return Info::uuid();
+    return oscr::uuid_from_string<Info>();
   }
 };
 
@@ -164,7 +174,7 @@ struct InletInitFunc
   }
   void operator()(const ControlInput auto& ctrl)
   {
-    if (auto p = ctrl.control().create_inlet(Id<Process::Port>(inlet++), &self))
+    if (auto p = get_control(ctrl).create_inlet(Id<Process::Port>(inlet++), &self))
     {
       p->hidden = true;
       ins.push_back(p);

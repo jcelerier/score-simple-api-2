@@ -114,6 +114,7 @@ struct GfxRenderer final : GenericTexgenRenderer
   ossia::small_flat_map<const score::gfx::Port*, score::gfx::TextureRenderTarget, 2> m_rts;
 
   std::vector<QRhiReadbackResult> m_readbacks;
+  ossia::time_value m_last_time{-1};
 
   GfxRenderer(const GenericTexgenNode& p, Node_T& node)
       : GenericTexgenRenderer{p}
@@ -320,6 +321,11 @@ struct GfxRenderer final : GenericTexgenRenderer
       score::gfx::Edge& edge) override
   {
     auto& rhi = *renderer.state.rhi;
+
+    // If we are paused, we don't run the processor implementation.
+    if(parent.last_message.token.date == m_last_time)
+      return;
+    m_last_time = parent.last_message.token.date;
 
     // Fetch input textures (if any)
     if constexpr(HasTextureInputs<Node_T>)

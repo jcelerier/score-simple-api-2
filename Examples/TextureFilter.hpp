@@ -3,7 +3,7 @@
 #include <oscr/Concepts.hpp>
 #include <rnd/random.hpp>
 
-namespace oscr
+namespace examples
 {
 struct TextureFilterExample
 {

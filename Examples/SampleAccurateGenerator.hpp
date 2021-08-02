@@ -2,7 +2,7 @@
 #include <oscr/Attributes.hpp>
 #include <rnd/random.hpp>
 
-namespace oscr
+namespace examples
 {
 
 struct SampleAccurateGeneratorExample

@@ -26,6 +26,10 @@ add_library(
   Examples/Distortion.hpp
   Examples/CCC.hpp
 
+  Examples/ControlGallery.hpp
+  Examples/ZeroDependencyAudioEffect.hpp
+
+  oscr/Attributes.hpp
   oscr/Concepts.hpp
   oscr/GpuNode.hpp
   oscr/Executor.hpp

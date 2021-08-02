@@ -2,7 +2,7 @@
 #include <oscr/Attributes.hpp>
 #include <cmath>
 
-namespace oscr
+namespace examples
 {
 
 struct SampleAccurateFilterExample

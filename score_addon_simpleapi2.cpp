@@ -15,7 +15,9 @@
 #include <Examples/TextureFilter.hpp>
 #include <Examples/TrivialGenerator.hpp>
 #include <Examples/TrivialFilter.hpp>
+#include <Examples/ZeroDependencyAudioEffect.hpp>
 #include <Examples/RawPorts.hpp>
+#include <Examples/ControlGallery.hpp>
 
 #include <Examples/Distortion.hpp>
 #include <Examples/CCC.hpp>
@@ -87,19 +89,22 @@ score_addon_simpleapi2::factories(
     const score::InterfaceKey& key) const
 {
   using namespace oscr;
+  using namespace examples;
   return oscr::instantiate_fx<
-      oscr::Distortion
-    , oscr::CCC
-    , oscr::RawPortsExample
-    , oscr::EmptyExample,
-      oscr::Synth
-    , oscr::TextureGeneratorExample, oscr::TextureFilterExample
-    , oscr::SampleAccurateGeneratorExample,
-      oscr::SampleAccurateFilterExample,
-      oscr::TrivialGeneratorExample,
-      oscr::TrivialFilterExample,
-      oscr::AudioEffectExample,
-      oscr::AudioSidechainExample>(ctx, key);
+      Distortion, ControlGallery
+    , CCC
+    , RawPortsExample
+    , EmptyExample,
+      Synth
+    , TextureGeneratorExample, TextureFilterExample
+    , SampleAccurateGeneratorExample,
+      SampleAccurateFilterExample,
+      TrivialGeneratorExample,
+      TrivialFilterExample,
+      ZeroDependencyAudioEffect,
+      AudioEffectExample,
+      AudioSidechainExample>(ctx, key);
+  return {};
 }
 
 std::vector<score::PluginKey> score_addon_simpleapi2::required() const

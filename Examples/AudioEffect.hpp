@@ -11,7 +11,7 @@ struct AudioEffectExample
 {
   meta_attribute(pretty_name, "My example effect");
   meta_attribute(script_name, effect_123);
-  meta_attribute(category, Audio);
+  meta_attribute(category, Demo);
   meta_attribute(kind, AudioEffect);
   meta_attribute(author, "<AUTHOR>");
   meta_attribute(description, "<DESCRIPTION>");

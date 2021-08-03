@@ -8,7 +8,7 @@ struct RawPortsExample
 {
   meta_attribute(pretty_name, "Raw ports example");
   meta_attribute(script_name, raw_ports_test_plugin);
-  meta_attribute(category, Debug);
+  meta_attribute(category, Demo);
   meta_attribute(kind, Other);
   meta_attribute(author, "<AUTHOR>");
   meta_attribute(description, "<DESCRIPTION>");

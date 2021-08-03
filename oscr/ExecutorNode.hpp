@@ -659,23 +659,52 @@ public:
     using namespace boost::pfr;
     using control_member = std::remove_reference_t<decltype(get<PortN>(state.inputs))>;
     constexpr const auto ctrl = get_control<control_member>();
-    if constexpr(Validate)
+    if constexpr(requires { ctrl.fromValue(ossia::value{}, vec[0]); })
     {
-      for (auto& v : vp)
+      // New API, allows the widgets to overload on different value types
+      // (e.g. to allow enums to work with, int, string, enum...
+      if constexpr(Validate)
       {
-        if (auto res = ctrl.fromValue(v.value))
+        for (auto& v : vp)
         {
-          vec[int64_t{v.timestamp}] = *std::move(res);
+          std::remove_reference_t<decltype(vec[0])> val;
+          if (ctrl.fromValue(v.value, val))
+          {
+            vec[int64_t{v.timestamp}] = std::move(val);
+            this->control_input_changed.set(ControlN);
+          }
+        }
+      }
+      else
+      {
+        for (auto& v : vp)
+        {
+          ctrl.fromValue(v.value, vec[int64_t{v.timestamp}]);
           this->control_input_changed.set(ControlN);
         }
       }
     }
     else
     {
-      for (auto& v : vp)
+      // Old API, deprecated
+      if constexpr(Validate)
       {
-        vec[int64_t{v.timestamp}] = ctrl.fromValue(v.value);
-        this->control_input_changed.set(ControlN);
+        for (auto& v : vp)
+        {
+          if (auto res = ctrl.fromValue(v.value))
+          {
+            vec[int64_t{v.timestamp}] = *std::move(res);
+            this->control_input_changed.set(ControlN);
+          }
+        }
+      }
+      else
+      {
+        for (auto& v : vp)
+        {
+          vec[int64_t{v.timestamp}] = ctrl.fromValue(v.value);
+          this->control_input_changed.set(ControlN);
+        }
       }
     }
   }
@@ -691,7 +720,10 @@ public:
     if constexpr(requires { port.values; })
     {
       // nothing to do, already copied
-      port.values = std::forward<Control>(ctl);
+      if constexpr(requires { get_control(port).convert(std::forward<Control>(ctl), port.values); })
+        get_control(port).convert(std::forward<Control>(ctl), port.values);
+      else
+        port.values = std::forward<Control>(ctl);
     }
     else if constexpr(requires { port.port; })
     {

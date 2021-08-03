@@ -13,7 +13,7 @@ struct EmptyExample
   /** Here are the metadata of the plug-ins, to display to the user **/
   meta_attribute(pretty_name, "Hello world");
   meta_attribute(script_name, empty_example);
-  meta_attribute(category, Debug);
+  meta_attribute(category, Demo);
   meta_attribute(kind, Other);
   meta_attribute(author, "<AUTHOR>");
   meta_attribute(description, "<DESCRIPTION>");

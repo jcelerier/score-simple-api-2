@@ -13,7 +13,7 @@ struct Synth
 {
   meta_attribute(pretty_name, "My example synth");
   meta_attribute(script_name, synth_123);
-  meta_attribute(category, Debug);
+  meta_attribute(category, Demo);
   meta_attribute(kind, Other);
   meta_attribute(author, "<AUTHOR>");
   meta_attribute(description, "<DESCRIPTION>");

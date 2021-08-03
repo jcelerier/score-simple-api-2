@@ -12,7 +12,7 @@ struct CCC
 {
   meta_attribute(pretty_name, "CCC");
   meta_attribute(script_name, CCC);
-  meta_attribute(category, Control);
+  meta_attribute(category, Demo);
   meta_attribute(kind, Generator);
   meta_attribute(author, "Peter Castine");
   meta_attribute(description, "1/f noise, using the Schuster/Procaccia deterministic (chaotic) algorithm");

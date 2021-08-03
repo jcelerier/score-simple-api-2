@@ -9,7 +9,7 @@ struct TextureFilterExample
 {
   meta_attribute(pretty_name, "My example texture filter");
   meta_attribute(script_name, texture_filt);
-  meta_attribute(category, Debug);
+  meta_attribute(category, Demo);
   meta_attribute(kind, Other);
   meta_attribute(author, "<AUTHOR>");
   meta_attribute(description, "<DESCRIPTION>");

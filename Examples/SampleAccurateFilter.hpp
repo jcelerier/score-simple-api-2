@@ -9,7 +9,7 @@ struct SampleAccurateFilterExample
 {
   meta_attribute(pretty_name, "My sample-accurate filter");
   meta_attribute(script_name, sample_acc_filt);
-  meta_attribute(category, Debug);
+  meta_attribute(category, Demo);
   meta_attribute(kind, Other);
   meta_attribute(author, "<AUTHOR>");
   meta_attribute(description, "<DESCRIPTION>");

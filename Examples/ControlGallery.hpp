@@ -14,7 +14,7 @@ struct ControlGallery
 {
   meta_attribute(pretty_name, "Control gallery");
   meta_attribute(script_name, control_gallery);
-  meta_attribute(category, Debug);
+  meta_attribute(category, Demo);
   meta_attribute(kind, Other);
   meta_attribute(author, "<AUTHOR>");
   meta_attribute(description, "<DESCRIPTION>");
@@ -94,12 +94,29 @@ struct ControlGallery
 
     //! Same as Enum but won't reject strings that are not part of the list.
     struct {
-      static const constexpr std::array<const char*, 4> choices() {
-        return {"Roses", "Red", "Violets", "Blue"};
+      static const constexpr std::array<const char*, 3> choices() {
+        return {"Square", "Sine", "Triangle"};
       };
       meta_control(Control::UnvalidatedEnum, "Unchecked enum", 1, choices());
       ossia::timed_vec<std::string> values{};
     } unvalidated_enumeration;
+
+    //! It's also possible to use this which will define an enum type and
+    //! map to it automatically.
+    //! e.g. in source one can then do:
+    //!
+    //!   auto& param = inputs.simpler_enumeration;
+    //!   using enum_type = decltype(param)::enum_type;
+    //!   switch(param.value) {
+    //!      case enum_type::Square:
+    //!        ...
+    //!   }
+    //!
+    //! OSC messages can use either the int index or the string.
+    struct {
+      meta_enum("Simple Enum", 1, Square, Peg, Round, Hole);
+      ossia::timed_vec<enum_type> values{};
+    } simpler_enumeration;
 
     //! Crosshair XY chooser
     struct {

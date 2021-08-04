@@ -10,7 +10,10 @@
 
 #include <cmath>
 #include <span>
+#include <type_traits>
+#if __has_include(<concepts>)
 #include <concepts>
+#endif
 
 namespace oscr
 {
@@ -32,8 +35,17 @@ template<typename _From, typename _To>
 concept convertible_to = std::is_convertible_v<_From, _To> && requires(std::add_rvalue_reference_t<_From> (&__f)()) {
   static_cast<_To>(__f());
 };
-
 #endif
+
+#if __has_include(<concepts>)
+template<typename T, typename U>
+concept same_as = std::same_as<T, U>;
+#else
+template<typename T, typename U>
+concept same_as = std::is_same_v<T, U> && std::is_same_v<U, T>;
+#endif
+
+
 template<typename N>
 consteval score::uuid_t uuid_from_string() {
   if constexpr(requires { { N::uuid() } -> convertible_to<score::uuid_t>; })
@@ -57,13 +69,13 @@ template<typename T>
 concept MultichannelAudioInput = requires (T a) {
   { a.samples.channels() } -> convertible_to<std::size_t>;
   { a.samples[0].size() } -> convertible_to<std::size_t>;
-  { a.samples[0][0] } -> std::same_as<const double&>;
+  { a.samples[0][0] } -> same_as<const double&>;
 };
 template<typename T>
 concept MultichannelAudioOutput = requires (T a) {
   { a.samples.channels() } -> convertible_to<std::size_t>;
   { a.samples[0].size() } -> convertible_to<std::size_t>;
-  { a.samples[0][0] } -> std::same_as<double&>;
+  { a.samples[0][0] } -> same_as<double&>;
 };
 
 template<typename T>
@@ -79,12 +91,12 @@ concept AudioEffectOutput = requires (T a) {
 
 template<typename T>
 concept PortAudioInput = requires (T a) {
-  { (a.port) } -> std::same_as<const ossia::audio_port*&>;
+  { (a.port) } -> same_as<const ossia::audio_port*&>;
 };
 
 template<typename T>
 concept PortAudioOutput = requires (T a) {
-  { (a.port) } -> std::same_as<ossia::audio_port*&>;
+  { (a.port) } -> same_as<ossia::audio_port*&>;
 };
 
 template<typename T>
@@ -141,12 +153,12 @@ concept ControlOutput = requires (T a) {
 //// Value ////
 template<typename T>
 concept PortValueInput = (!ControlInput<T>) && requires (T a) {
-  { (a.port) } -> std::same_as<const ossia::value_port*&>;
+  { (a.port) } -> same_as<const ossia::value_port*&>;
 };
 
 template<typename T>
 concept PortValueOutput = (!ControlOutput<T>) && requires (T a) {
-  { (a.port) } -> std::same_as<ossia::value_port*&>;
+  { (a.port) } -> same_as<ossia::value_port*&>;
 };
 
 template<typename T>
@@ -201,12 +213,12 @@ concept TextureOutput = NamedPort<T> && CPUTextureOutput<T>;
 
 template<typename T>
 concept PortMidiInput = requires (T a) {
-  { (a.port) } -> std::same_as<const ossia::midi_port*&>;
+  { (a.port) } -> same_as<const ossia::midi_port*&>;
 };
 
 template<typename T>
 concept PortMidiOutput = requires (T a) {
-  { (a.port) } -> std::same_as<ossia::midi_port*&>;
+  { (a.port) } -> same_as<ossia::midi_port*&>;
 };
 
 template<typename T>

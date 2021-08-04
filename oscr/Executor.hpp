@@ -9,12 +9,12 @@
 #include <Gfx/GfxApplicationPlugin.hpp>
 #include <Process/Execution/ProcessComponent.hpp>
 #include <Process/ExecutionContext.hpp>
+#include <Scenario/Execution/score2OSSIA.hpp>
 
 #include <score/tools/Bind.hpp>
 
 #include <QTimer>
 
-#include <Scenario/Execution/score2OSSIA.hpp>
 
 namespace oscr
 {

@@ -4,6 +4,8 @@
 #include <ossia/detail/timed_vec.hpp>
 #include <ossia/dataflow/exec_state_facade.hpp>
 
+#include <array>
+
 #if defined(_MSC_VER)
 #define meta_attribute_uuid(name, value) static inline auto uuid() { return_uuid(value); }
 #else

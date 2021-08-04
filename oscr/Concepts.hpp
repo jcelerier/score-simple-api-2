@@ -1,14 +1,17 @@
 #pragma once
 
 #include <Control/Widgets.hpp>
-#include <cmath>
-#include <span>
 #include <ossia/dataflow/audio_port.hpp>
 #include <ossia/dataflow/safe_nodes/tick_policies.hpp>
 #include <boost/container/vector.hpp>
 #include <Process/ProcessFlags.hpp>
 #include <Process/ProcessMetadata.hpp>
 #include <score/plugins/UuidKey.hpp>
+
+#include <cmath>
+#include <span>
+#include <concepts>
+
 namespace oscr
 {
 

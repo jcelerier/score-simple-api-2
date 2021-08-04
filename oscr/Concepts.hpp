@@ -32,9 +32,7 @@ template<typename T, typename U>
 concept convertible_to = std::convertible_to<T, U>;
 #else
 template<typename _From, typename _To>
-concept convertible_to = std::is_convertible_v<_From, _To> && requires(std::add_rvalue_reference_t<_From> (&__f)()) {
-  static_cast<_To>(__f());
-};
+concept convertible_to = std::is_convertible_v<_From, _To>;
 #endif
 
 #if __has_include(<concepts>)

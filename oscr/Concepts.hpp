@@ -24,9 +24,19 @@ namespace oscr
 
 #define constant static inline constexpr auto
 
+#if __cpp_lib_concepts >= 202002L
+template<typename T, typename U>
+concept convertible_to = std::convertible_to<T, U>;
+#else
+template<typename _From, typename _To>
+concept convertible_to = std::is_convertible_v<_From, _To> && requires(std::add_rvalue_reference_t<_From> (&__f)()) {
+  static_cast<_To>(__f());
+};
+
+#endif
 template<typename N>
 consteval score::uuid_t uuid_from_string() {
-  if constexpr(requires { { N::uuid() } -> std::convertible_to<score::uuid_t>; })
+  if constexpr(requires { { N::uuid() } -> convertible_to<score::uuid_t>; })
   {
     return N::uuid();
   }
@@ -45,26 +55,26 @@ concept NamedPort = requires(T a) {
 //// Audio inputs ////
 template<typename T>
 concept MultichannelAudioInput = requires (T a) {
-  { a.samples.channels() } -> std::convertible_to<std::size_t>;
-  { a.samples[0].size() } -> std::convertible_to<std::size_t>;
+  { a.samples.channels() } -> convertible_to<std::size_t>;
+  { a.samples[0].size() } -> convertible_to<std::size_t>;
   { a.samples[0][0] } -> std::same_as<const double&>;
 };
 template<typename T>
 concept MultichannelAudioOutput = requires (T a) {
-  { a.samples.channels() } -> std::convertible_to<std::size_t>;
-  { a.samples[0].size() } -> std::convertible_to<std::size_t>;
+  { a.samples.channels() } -> convertible_to<std::size_t>;
+  { a.samples[0].size() } -> convertible_to<std::size_t>;
   { a.samples[0][0] } -> std::same_as<double&>;
 };
 
 template<typename T>
 concept AudioEffectInput = requires (T a) {
-  { a.samples } -> std::convertible_to<const double**>;
-  { a.channels } -> std::convertible_to<std::size_t>;
+  { a.samples } -> convertible_to<const double**>;
+  { a.channels } -> convertible_to<std::size_t>;
 };
 template<typename T>
 concept AudioEffectOutput = requires (T a) {
-  { a.samples } -> std::convertible_to<double**>;
-  //{ a.channels } -> std::convertible_to<std::size_t>;
+  { a.samples } -> convertible_to<double**>;
+  //{ a.channels } -> convertible_to<std::size_t>;
 };
 
 template<typename T>
@@ -89,7 +99,7 @@ concept ControlInput = requires (T a) {
 };
 template<typename T>
 concept FullControlImpl = requires (T a) {
-  { a.control() } -> std::convertible_to<::ossia::safe_nodes::control_in>;
+  { a.control() } -> convertible_to<::ossia::safe_nodes::control_in>;
 };
 
 
@@ -141,22 +151,22 @@ concept PortValueOutput = (!ControlOutput<T>) && requires (T a) {
 
 template<typename T>
 concept TimedValueInput = (!ControlInput<T>) && requires (T a) {
-  { a.values[0] } -> std::convertible_to<ossia::value>;
+  { a.values[0] } -> convertible_to<ossia::value>;
 };
 
 template<typename T>
 concept TimedValueOutput = (!ControlOutput<T>) && requires (T a) {
-  { a.values[0] } -> std::convertible_to<ossia::value>;
+  { a.values[0] } -> convertible_to<ossia::value>;
 };
 
 template<typename T>
 concept SingleValueInput = (!ControlInput<T>) && requires (T a) {
-  { a.value } -> std::convertible_to<ossia::value>;
+  { a.value } -> convertible_to<ossia::value>;
 };
 
 template<typename T>
 concept SingleValueOutput = (!ControlOutput<T>) && requires (T a) {
-  { a.value } -> std::convertible_to<ossia::value>;
+  { a.value } -> convertible_to<ossia::value>;
 };
 
 template<typename T>
@@ -201,12 +211,12 @@ concept PortMidiOutput = requires (T a) {
 
 template<typename T>
 concept MessagesMidiInput = requires (T a) {
-  { a.messages[0] } -> std::convertible_to<const libremidi::message&>;
+  { a.messages[0] } -> convertible_to<const libremidi::message&>;
 };
 
 template<typename T>
 concept MessagesMidiOutput = requires (T a) {
-  { a.messages[0] } -> std::convertible_to<libremidi::message&>;
+  { a.messages[0] } -> convertible_to<libremidi::message&>;
 };
 
 template<typename T>
@@ -216,7 +226,7 @@ concept MidiOutput = NamedPort<T> &&  (PortMidiOutput<T> || MessagesMidiOutput<T
 
 template<typename T>
 concept TimedVec = requires (T a) {
-  { a.begin()->first } -> std::convertible_to<int64_t>;
+  { a.begin()->first } -> convertible_to<int64_t>;
   { a.begin()->second };
 };
 

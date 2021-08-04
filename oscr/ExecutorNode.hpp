@@ -742,7 +742,7 @@ public:
 
   constexpr auto get_policy() noexcept {
 
-    if constexpr(requires { typename Node_T::control_policy {}; }) {
+    if constexpr(requires { std::is_constructible_v<typename Node_T::control_policy>; }) {
       return typename Node_T::control_policy{};
     }
     else {

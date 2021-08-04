@@ -69,12 +69,12 @@ concept AudioEffectOutput = requires (T a) {
 
 template<typename T>
 concept PortAudioInput = requires (T a) {
-  { a.port } -> std::same_as<const ossia::audio_port*>;
+  { (a.port) } -> std::same_as<const ossia::audio_port*&>;
 };
 
 template<typename T>
 concept PortAudioOutput = requires (T a) {
-  { a.port } -> std::same_as<ossia::audio_port*>;
+  { (a.port) } -> std::same_as<ossia::audio_port*&>;
 };
 
 template<typename T>
@@ -131,12 +131,12 @@ concept ControlOutput = requires (T a) {
 //// Value ////
 template<typename T>
 concept PortValueInput = (!ControlInput<T>) && requires (T a) {
-  { a.port } -> std::same_as<const ossia::value_port*>;
+  { (a.port) } -> std::same_as<const ossia::value_port*&>;
 };
 
 template<typename T>
 concept PortValueOutput = (!ControlOutput<T>) && requires (T a) {
-  { a.port } -> std::same_as<ossia::value_port*>;
+  { (a.port) } -> std::same_as<ossia::value_port*&>;
 };
 
 template<typename T>
@@ -191,12 +191,12 @@ concept TextureOutput = NamedPort<T> && CPUTextureOutput<T>;
 
 template<typename T>
 concept PortMidiInput = requires (T a) {
-  { a.port } -> std::same_as<const ossia::midi_port*>;
+  { (a.port) } -> std::same_as<const ossia::midi_port*&>;
 };
 
 template<typename T>
 concept PortMidiOutput = requires (T a) {
-  { a.port } -> std::same_as<ossia::midi_port*>;
+  { (a.port) } -> std::same_as<ossia::midi_port*&>;
 };
 
 template<typename T>

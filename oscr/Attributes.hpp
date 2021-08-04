@@ -12,15 +12,15 @@
 #define meta_attribute_uuid(name, value) static constexpr auto uuid() { return_uuid(value); }
 #endif
 
-#define meta_attribute_name(unused, value) static constexpr auto name() { return value; }
-#define meta_attribute_pretty_name(unused, value) static constexpr auto name() { return value; }
-#define meta_attribute_script_name(name, value) static constexpr auto script_name() { { int value; (void) value; } return #value; }
-#define meta_attribute_category(name, value) static constexpr auto category() { return #value; }
-#define meta_attribute_author(name, value) static constexpr auto author() { return value; }
+#define meta_attribute_name(unused, value) static constexpr const char* name() { return value; }
+#define meta_attribute_pretty_name(unused, value) static constexpr const char* name() { return value; }
+#define meta_attribute_script_name(name, value) static constexpr const char* script_name() { { int value; (void) value; } return #value; }
+#define meta_attribute_category(name, value) static constexpr const char* category() { return #value; }
+#define meta_attribute_author(name, value) static constexpr const char* author() { return value; }
 #define meta_attribute_kind(name, value) static constexpr auto kind() { return Process::ProcessCategory::value; }
-#define meta_attribute_description(name, value) static constexpr auto description() { return value; }
-#define meta_attribute_event(name, value) static constexpr auto is_event() { return value; }
-#define meta_attribute_mimic_channels(name, value) static constexpr auto mimic_channels() { \
+#define meta_attribute_description(name, value) static constexpr const char* description() { return value; }
+#define meta_attribute_event(name, value) static constexpr bool is_event() { return value; }
+#define meta_attribute_mimic_channels(name, value) static constexpr auto mimic_channels() -> decltype( &decltype(inputs)::value ) { \
   static_assert(requires { &decltype(decltype(inputs)::value)::channels; }); \
   return &decltype(inputs)::value; \
 }

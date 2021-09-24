@@ -75,7 +75,7 @@ struct Synth
       return;
 
     // 3. Output some bleeps
-    const auto N = tk.physical_write_duration(st.modelToSamples());
+    const auto [start, N] = st.timings(tk);
     double increment = ossia::two_pi * last_note.dataspace_value / double(st.sampleRate());
     auto& out = outputs.audio.samples;
 

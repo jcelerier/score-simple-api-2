@@ -59,13 +59,9 @@ struct RawPortsExample
    /**
    * In this case, it is entirely up to the author to handle timing properly.
    * In particular: the audio buffers, are the raw buffers which aren't offset by  * the date at which audio processing is supposed to start;
-   * the "actual" data that the node has to process is contained between:
+   * the "actual" data that the node has to process is contained in the samples given by:
    *
-   *   t.physical_start(st.modelToSamples());
-   *
-   * and
-   *
-   *   t.physical_write_duration(st.modelToSamples());
+   *   auto [start, N] = st.timings(t);
    *
    * e.g. for instance, the audio buffers go from 0 to 512 ; but the token request (indicating timing information)
    * may request this process to fill the samples 17 to 180, in order to match the temporal structure of the score.
@@ -83,8 +79,7 @@ struct RawPortsExample
     // outputs.midi.port->messages = inputs.midi.port->messages;
 
     // The valid implementation is a bit involved - if you use the simpler types this is done behind the scene.
-    const int64_t start = t.physical_start(st.modelToSamples());
-    const int64_t N = t.physical_write_duration(st.modelToSamples());
+    auto [start, N] = st.timings(t);
 
     // Copy audio input
     if(const auto channels = inputs.audio.port->samples.size(); channels > 0)

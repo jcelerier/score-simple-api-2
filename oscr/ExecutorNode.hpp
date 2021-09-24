@@ -225,15 +225,15 @@ struct BeforeExecInlets
 
   void operator()(MultichannelAudioInput auto& in, ossia::audio_inlet& port) const noexcept
   {
-    in.samples.offset = st.physical_start(sub_tk);
-    in.samples.duration = sub_tk.physical_write_duration(st.modelToSamples());
+    const auto [start, N] = st.timings(sub_tk);
+    in.samples.offset = start;
+    in.samples.duration = N;
   }
 
   void operator()(AudioEffectInput auto& in, ossia::audio_inlet& port) const noexcept
   {
     in.channels = port->samples.size();
-    auto first_pos = st.physical_start(sub_tk);
-    auto N = sub_tk.physical_write_duration(st.modelToSamples());
+    const auto [first_pos, N] = st.timings(sub_tk);
 
     // Allocate enough memory in our input buffers
     for (std::size_t i = 0; i < in.channels; i++)
@@ -258,8 +258,7 @@ struct BeforeExecInlets
     in.values.clear();
     if(const auto& inlet_values = port.data.get_data(); !inlet_values.empty())
     {
-      const auto start = st.physical_start(sub_tk);
-      const auto dur = sub_tk.physical_write_duration(st.modelToSamples());
+      const auto [start, dur] = st.timings(sub_tk);
       const auto end = start + dur;
 
       for(auto& [value, timestamp] : inlet_values)
@@ -290,8 +289,7 @@ struct BeforeExecInlets
     in.messages.clear();
     if(auto& inlet_values = port->messages; !inlet_values.empty())
     {
-      const auto start = st.physical_start(sub_tk);
-      const auto dur = sub_tk.physical_write_duration(st.modelToSamples());
+      const auto [start, dur] = st.timings(sub_tk);
       const auto end = start + dur;
 
       for(libremidi::message& msg : inlet_values)
@@ -324,8 +322,9 @@ struct BeforeExecOutlets
 
   void operator()(MultichannelAudioOutput auto& out, ossia::audio_outlet& port) const noexcept
   {
-    out.samples.offset = st.physical_start(sub_tk);
-    out.samples.duration = sub_tk.physical_write_duration(st.modelToSamples());
+    const auto [start, N] = st.timings(sub_tk);
+    out.samples.offset = start;
+    out.samples.duration = N;
   }
 
   void operator()(AudioEffectOutput auto& out, ossia::audio_outlet& port) const noexcept
@@ -424,7 +423,8 @@ struct AfterExecOutlets
 
   void operator()(SingleValueOutput auto& out, ossia::value_outlet& port) const noexcept
   {
-    port->write_value(std::move(out.value), st.physical_start(sub_tk));
+    const auto [start, N] = st.timings(sub_tk);
+    port->write_value(std::move(out.value), start);
   }
 
 
@@ -789,8 +789,7 @@ public:
     }
 
     /// Prepare samples for "raw" audio channels.
-    const int64_t N = sub_tk.physical_write_duration(st.modelToSamples());
-    const int64_t first_pos = sub_tk.physical_start(st.modelToSamples());
+    const auto [first_pos, N] = st.timings(sub_tk);
 
     {
       // 1. Count inputs

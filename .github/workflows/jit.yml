@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: [3.0.0-a42]
+        version: [3.0.0-b8]
         config:
           - {
               name: "Windows",

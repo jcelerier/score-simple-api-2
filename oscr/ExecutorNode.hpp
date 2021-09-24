@@ -789,7 +789,7 @@ public:
     }
 
     /// Prepare samples for "raw" audio channels.
-    const auto [first_pos, N] = st.timings(sub_tk);
+    const auto timings = st.timings(sub_tk);
 
     {
       // 1. Count inputs
@@ -824,9 +824,9 @@ public:
                 {
                   auto& ossia_channel = port.data.samples[i];
                   const int64_t available_samples = ossia_channel.size();
-                  if(available_samples - first_pos < N)
-                    ossia_channel.resize(N + first_pos);
-                  field.samples[i] = ossia_channel.data() + first_pos;
+                  if(available_samples - timings.start_sample < timings.length)
+                    ossia_channel.resize(timings.length + timings.start_sample);
+                  field.samples[i] = ossia_channel.data() + timings.start_sample;
                 }
                 channel_data_ref += field.channels;
               }
@@ -865,9 +865,9 @@ public:
                 {
                   auto& ossia_channel = port.data.samples[i];
                   const int64_t available_samples = ossia_channel.size();
-                  if(available_samples - first_pos < N)
-                    ossia_channel.resize(N + first_pos);
-                  field.samples[i] = ossia_channel.data() + first_pos;
+                  if(available_samples - timings.start_sample < timings.length)
+                    ossia_channel.resize(timings.length + timings.start_sample);
+                  field.samples[i] = ossia_channel.data() + timings.start_sample;
                 }
                 channel_data_ref += channels;
               }
@@ -882,7 +882,7 @@ public:
     }
     else if constexpr(RunnableWithSampleCount<Node_T>)
     {
-      state(N);
+      state(timings.length);
     }
     else if constexpr(RunnableWithoutArguments<Node_T>)
     {

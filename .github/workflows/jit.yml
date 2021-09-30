@@ -77,13 +77,11 @@ jobs:
 
       - name: Compile
         if: matrix.config.name == 'Windows'
-        shell: bash
+        shell: cmd
         run: |
-          SCORE_FILENAME=./score.exe
-          export SCORE_JIT_SDK="$PWD/sdk/usr"
-          export QT_FORCE_STDERR_LOGGING=1
-          export QT_ASSUME_STDERR_HAS_CONSOLE=1
-          $SCORE_FILENAME --no-gui --compile-addon "$PWD"
+          set QT_FORCE_STDERR_LOGGING=1
+          set QT_ASSUME_STDERR_HAS_CONSOLE=1
+          score.exe --no-gui --compile-addon "%cd%"
 
       - name: Compile
         if: matrix.config.name == 'Ubuntu'
@@ -170,11 +168,10 @@ jobs:
         if: matrix.config.name == 'Windows'
         shell: bash
         run: |
-          SCORE_FILENAME=./score.exe
           export SCORE_JIT_SDK="$PWD/sdk/usr"
           export QT_FORCE_STDERR_LOGGING=1
           export QT_ASSUME_STDERR_HAS_CONSOLE=1
-          $SCORE_FILENAME --no-gui --compile-addon "$PWD"
+          ./score.exe --no-gui --compile-addon "$PWD"
 
       - name: Compile
         if: matrix.config.name == 'Ubuntu'

@@ -79,7 +79,7 @@ struct GenericTexgenNode : score::gfx::NodeModel
     }
     else
     {
-      for(int i = 0; i < msg.input.size(); i++)
+      for(std::size_t i = 0; i < msg.input.size(); i++)
       {
         // If there's some data, overwrite it
         if(msg.input[i].index() != 0)
@@ -349,7 +349,7 @@ struct GfxRenderer final : GenericTexgenRenderer
     }
 
     // Apply the controls
-    int k = 0;
+    std::size_t k = 0;
     boost::pfr::for_each_field_ref(
         state.inputs,
         [&] <typename T>(T&& t) {
@@ -400,11 +400,11 @@ struct GfxNode final : GenericTexgenNode
   GfxNode(std::shared_ptr<Node_T> n)
       : node{std::move(n)}
   {
-    for(int i = 0; i < inlet_reflection<Node_T>::texture_in_count; i++)
+    for(std::size_t i = 0; i < inlet_reflection<Node_T>::texture_in_count; i++)
     {
       input.push_back(new score::gfx::Port{this, {}, score::gfx::Types::Image, {}});
     }
-    for(int i = 0; i < outlet_reflection<Node_T>::texture_out_count; i++)
+    for(std::size_t i = 0; i < outlet_reflection<Node_T>::texture_out_count; i++)
     {
       output.push_back(new score::gfx::Port{this, {}, score::gfx::Types::Image, {}});
     }

@@ -236,7 +236,7 @@ struct BeforeExecInlets
     const auto [first_pos, N] = st.timings(sub_tk);
 
     // Allocate enough memory in our input buffers
-    for (std::size_t i = 0; i < in.channels; i++)
+    for (decltype(in.channels) i = 0; i < in.channels; i++)
     {
       auto& in = port->samples[i];
       if(int64_t(in.size()) - first_pos < N)
@@ -820,7 +820,7 @@ public:
             [&] <typename T> (T&& field, auto& port) {
               if constexpr(AudioEffectInput<T>) {
                 field.samples = channel_data_ref;
-                for(std::size_t i = 0; i < field.channels; ++i)
+                for(decltype(field.channels) i = 0; i < field.channels; ++i)
                 {
                   auto& ossia_channel = port.data.samples[i];
                   const int64_t available_samples = ossia_channel.size();

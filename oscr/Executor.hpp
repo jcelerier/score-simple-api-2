@@ -54,7 +54,7 @@ struct setup_Impl0
       using namespace ossia::safe_nodes;
       using Info = Node;
       constexpr auto control_index = ControlIndexT::value;
-      using port_index_t = typename inlet_reflection<Info>::template control_input_index<ControlIndexT::value>;
+      //using port_index_t = typename inlet_reflection<Info>::template control_input_index<ControlIndexT::value>;
       using control_tuple = typename inlet_reflection<Info>::control_input_tuple;
       using control_member = std::tuple_element_t<ControlIndexT::value, control_tuple>;
       constexpr auto control_spec = get_control<control_member>();
@@ -81,7 +81,7 @@ struct setup_Impl0
       using namespace ossia::safe_nodes;
       using Info = Node;
       constexpr auto control_index = ControlIndexT::value;
-      using port_index_t = typename inlet_reflection<Info>::template control_input_index<ControlIndexT::value>;
+      //using port_index_t = typename inlet_reflection<Info>::template control_input_index<ControlIndexT::value>;
 
       using control_tuple = typename inlet_reflection<Info>::control_input_tuple;
       using control_member = std::tuple_element_t<ControlIndexT::value, control_tuple>;
@@ -160,7 +160,7 @@ struct ApplyEngineControlChangeToUI
     using control_tuple = typename inlet_reflection<Node>::control_input_tuple;
     using control_member = std::tuple_element_t<ControlIndexT::value, control_tuple>;
     constexpr auto control_spec = get_control<control_member>();
-    using control_type = decltype(control_spec);
+    //using control_type = decltype(control_spec);
 
     auto inlet = static_cast<Process::ControlInlet*>(element.inlets()[port_index_t::value]);
 

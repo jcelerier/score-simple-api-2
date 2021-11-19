@@ -84,7 +84,7 @@ struct RawPortsExample
     // Copy audio input
     if(const auto channels = inputs.audio.port->samples.size(); channels > 0)
     {
-      outputs.audio.port->samples.resize(channels);
+      outputs.audio.port->set_channels(channels);
       for(std::size_t c = 0; c < channels; ++c)
       {
         auto& in = inputs.audio.port->samples[c];

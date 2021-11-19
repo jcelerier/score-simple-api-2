@@ -860,7 +860,7 @@ public:
                 field.samples = channel_data_ref;
 
                 const std::size_t channels = audio_output_channels(field);
-                port.data.samples.resize(channels);
+                port.data.set_channels(channels);
                 for(std::size_t i = 0; i < channels; ++i)
                 {
                   auto& ossia_channel = port.data.samples[i];

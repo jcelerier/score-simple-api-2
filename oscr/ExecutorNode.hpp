@@ -77,7 +77,7 @@ struct InitInlets
     inlets.push_back(std::addressof(port));
 
     if constexpr(MultichannelAudioInput<decltype(in)>) {
-      in.samples.buffer = std::addressof(port->samples);
+      in.samples.buffer = std::addressof(port->get());
     }
     else if constexpr(PortAudioInput<decltype(in)>) {
       in.port = std::addressof(*port);
@@ -151,7 +151,7 @@ struct InitOutlets
     outlets.push_back(std::addressof(port));
 
     if constexpr(MultichannelAudioOutput<decltype(out)>) {
-      out.samples.buffer = std::addressof(port->samples);
+      out.samples.buffer = std::addressof(port->get());
     }
     else if constexpr(PortAudioOutput<decltype(out)>) {
       out.port = std::addressof(*port);
@@ -232,13 +232,13 @@ struct BeforeExecInlets
 
   void operator()(AudioEffectInput auto& in, ossia::audio_inlet& port) const noexcept
   {
-    in.channels = port->samples.size();
+    in.channels = port->channels();
     const auto [first_pos, N] = st.timings(sub_tk);
 
     // Allocate enough memory in our input buffers
     for (decltype(in.channels) i = 0; i < in.channels; i++)
     {
-      auto& in = port->samples[i];
+      auto& in = port->channel(i);
       if(int64_t(in.size()) - first_pos < N)
         in.resize(N + first_pos);
     }
@@ -822,7 +822,7 @@ public:
                 field.samples = channel_data_ref;
                 for(decltype(field.channels) i = 0; i < field.channels; ++i)
                 {
-                  auto& ossia_channel = port.data.samples[i];
+                  auto& ossia_channel = port.data.channel(i);
                   const int64_t available_samples = ossia_channel.size();
                   if(available_samples - timings.start_sample < timings.length)
                     ossia_channel.resize(timings.length + timings.start_sample);
@@ -863,7 +863,7 @@ public:
                 port.data.set_channels(channels);
                 for(std::size_t i = 0; i < channels; ++i)
                 {
-                  auto& ossia_channel = port.data.samples[i];
+                  auto& ossia_channel = port.data.channel(i);
                   const int64_t available_samples = ossia_channel.size();
                   if(available_samples - timings.start_sample < timings.length)
                     ossia_channel.resize(timings.length + timings.start_sample);

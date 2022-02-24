@@ -242,7 +242,7 @@ struct GfxRenderer final : GenericTexgenRenderer
 
   void init(score::gfx::RenderList& renderer) override
   {
-    const score::gfx::TexturedTriangle& mesh = score::gfx::TexturedTriangle::instance();
+    const auto& mesh = renderer.defaultTriangle();
     defaultMeshInit(renderer, mesh);
     processUBOInit(renderer);
     m_material.init(renderer, node.input, m_samplers);
